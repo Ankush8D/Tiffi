@@ -25,7 +25,6 @@
       "googleServicesFile": "./google-services.json"
     },
     "plugins": [
-      "expo-build-properties",
       "@react-native-firebase/app",
       "@react-native-firebase/auth",
       [
