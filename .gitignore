@@ -10,6 +10,7 @@ target/
 # Firebase credentials - NEVER commit
 firebase-service-account.json
 *-service-account.json
+google-services.json
 
 # Environment
 .env
