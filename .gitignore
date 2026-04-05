@@ -10,7 +10,7 @@ target/
 # Firebase credentials - NEVER commit
 firebase-service-account.json
 *-service-account.json
-google-services.json
+# google-services.json is intentionally committed (needed for EAS Build)
 
 # Environment
 .env
