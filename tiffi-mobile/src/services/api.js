@@ -1,12 +1,12 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
-const BASE_URL = 'http://192.168.29.196:8080/api/v1'; // Mac's local IP for physical device testing
+const BASE_URL = 'https://all-beds-tan.loca.lt/api/v1'; // localtunnel for testing
 
 const api = axios.create({
   baseURL: BASE_URL,
   timeout: 15000,
-  headers: { 'Content-Type': 'application/json' },
+  headers: { 'Content-Type': 'application/json', 'bypass-tunnel-reminder': 'true' },
 });
 
 // Attach JWT token to every request
