@@ -1,0 +1,35 @@
+# Java / Spring Boot
+*.class
+*.jar
+*.war
+target/
+.mvn/
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# Firebase credentials - NEVER commit
+firebase-service-account.json
+*-service-account.json
+
+# Environment
+.env
+.env.local
+application-prod.properties
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Node / React Native
+node_modules/
+.expo/
+dist/
+*.tsbuildinfo
+
+# macOS
+.DS_Store
