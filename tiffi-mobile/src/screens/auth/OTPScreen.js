@@ -29,10 +29,10 @@ export default function OTPScreen({ route }) {
   const handleVerify = async (code) => {
     setLoading(true);
     try {
-      await confirmation.confirm(code);
+      // Confirm OTP with Firebase
+      const result = await confirmation.confirm(code);
       // Get Firebase ID token
-      const { default: auth } = await import('@react-native-firebase/auth');
-      const idToken = await auth().currentUser.getIdToken();
+      const idToken = await result.user.getIdToken();
 
       const res = await authAPI.verify(idToken, role);
       await SecureStore.setItemAsync('user_role', res.data.role);

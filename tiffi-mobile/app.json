@@ -24,20 +24,6 @@
       },
       "googleServicesFile": "./google-services.json"
     },
-    "plugins": [
-      "@react-native-firebase/app",
-      "@react-native-firebase/auth",
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "compileSdkVersion": 34,
-            "targetSdkVersion": 34,
-            "buildToolsVersion": "34.0.0"
-          }
-        }
-      ]
-    ],
     "extra": {
       "eas": {
         "projectId": "216951b9-5554-48e7-9084-a21906569971"
