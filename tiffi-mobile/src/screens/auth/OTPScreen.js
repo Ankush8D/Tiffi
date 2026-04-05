@@ -40,7 +40,7 @@ export default function OTPScreen({ route }) {
       await SecureStore.setItemAsync('user_id', String(res.data.userId));
       await setAuth(res.data);
     } catch (error) {
-      Alert.alert('Invalid OTP', 'Please check the code and try again');
+      Alert.alert('Error', error?.message || error?.code || JSON.stringify(error));
       setOtp(['', '', '', '', '', '']);
       inputs.current[0]?.focus();
     } finally {
