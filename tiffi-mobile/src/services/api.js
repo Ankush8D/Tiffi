@@ -1,8 +1,7 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
-const BASE_URL = 'http://10.0.2.2:8080/api/v1'; // Android emulator → localhost
-// For physical device: replace with your Mac's local IP e.g. http://192.168.1.x:8080
+const BASE_URL = 'http://192.168.29.196:8080/api/v1'; // Mac's local IP for physical device testing
 
 const api = axios.create({
   baseURL: BASE_URL,
