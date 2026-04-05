@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "TIFFI",
+    "slug": "tiffi",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": false,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F97316"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.tiffi"
+    },
+    "android": {
+      "package": "com.tiffi",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#F97316"
+      },
+      "googleServicesFile": "./google-services.json"
+    },
+    "plugins": [
+      "expo-build-properties",
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 34,
+            "targetSdkVersion": 34,
+            "buildToolsVersion": "34.0.0"
+          }
+        }
+      ]
+    ]
+  }
+}
