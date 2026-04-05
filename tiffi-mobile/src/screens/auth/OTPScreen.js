@@ -7,7 +7,7 @@ import useAuthStore from '../../store/authStore';
 import { colors, spacing, radius, fontSizes } from '../../theme';
 
 export default function OTPScreen({ route }) {
-  const { confirmation, phone, role } = route.params;
+  const { verificationId, phone, role } = route.params;
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [countdown, setCountdown] = useState(30);
@@ -30,10 +30,10 @@ export default function OTPScreen({ route }) {
   const handleVerify = async (code) => {
     setLoading(true);
     try {
-      // Confirm OTP with Firebase (native SDK)
-      await confirmation.confirm(code);
-      // Get Firebase ID token from current user
-      const idToken = await auth().currentUser.getIdToken();
+      // Create credential from verificationId + OTP code
+      const credential = auth.PhoneAuthProvider.credential(verificationId, code);
+      const userCredential = await auth().signInWithCredential(credential);
+      const idToken = await userCredential.user.getIdToken();
 
       const res = await authAPI.verify(idToken, role);
       await SecureStore.setItemAsync('user_role', res.data.role);

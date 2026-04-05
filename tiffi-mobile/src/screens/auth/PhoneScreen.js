@@ -17,7 +17,7 @@ export default function PhoneScreen({ navigation, route }) {
     setLoading(true);
     try {
       const confirmation = await auth().signInWithPhoneNumber('+91' + cleaned);
-      navigation.navigate('OTP', { confirmation, phone: cleaned, role });
+      navigation.navigate('OTP', { verificationId: confirmation.verificationId, phone: cleaned, role });
     } catch (error) {
       Alert.alert('Error', error.message || 'Failed to send OTP. Try again.');
     } finally {
