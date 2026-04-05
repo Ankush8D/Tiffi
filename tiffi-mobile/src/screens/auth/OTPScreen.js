@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
+import { auth } from '../../services/firebase';
 import { authAPI } from '../../services/api';
 import useAuthStore from '../../store/authStore';
 import { colors, spacing, radius, fontSizes } from '../../theme';
@@ -29,10 +30,10 @@ export default function OTPScreen({ route }) {
   const handleVerify = async (code) => {
     setLoading(true);
     try {
-      // Confirm OTP with Firebase
-      const result = await confirmation.confirm(code);
-      // Get Firebase ID token
-      const idToken = await result.user.getIdToken();
+      // Confirm OTP with Firebase (native SDK)
+      await confirmation.confirm(code);
+      // Get Firebase ID token from current user
+      const idToken = await auth().currentUser.getIdToken();
 
       const res = await authAPI.verify(idToken, role);
       await SecureStore.setItemAsync('user_role', res.data.role);

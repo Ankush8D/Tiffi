@@ -1,16 +1,12 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
-import { signInWithPhoneNumber } from 'firebase/auth';
-import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
 import { auth } from '../../services/firebase';
-import app from '../../services/firebase';
 import { colors, spacing, radius, fontSizes } from '../../theme';
 
 export default function PhoneScreen({ navigation, route }) {
   const { role } = route.params;
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
-  const recaptchaVerifier = useRef(null);
 
   const handleSendOTP = async () => {
     const cleaned = phone.trim().replace(/\s/g, '');
@@ -20,7 +16,7 @@ export default function PhoneScreen({ navigation, route }) {
     }
     setLoading(true);
     try {
-      const confirmation = await signInWithPhoneNumber(auth, '+91' + cleaned, recaptchaVerifier.current);
+      const confirmation = await auth().signInWithPhoneNumber('+91' + cleaned);
       navigation.navigate('OTP', { confirmation, phone: cleaned, role });
     } catch (error) {
       Alert.alert('Error', error.message || 'Failed to send OTP. Try again.');
@@ -31,12 +27,6 @@ export default function PhoneScreen({ navigation, route }) {
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <FirebaseRecaptchaVerifierModal
-        ref={recaptchaVerifier}
-        firebaseConfig={app.options}
-        attemptInvisibleVerification={true}
-      />
-
       <TouchableOpacity style={styles.back} onPress={() => navigation.goBack()}>
         <Text style={styles.backText}>← Back</Text>
       </TouchableOpacity>
