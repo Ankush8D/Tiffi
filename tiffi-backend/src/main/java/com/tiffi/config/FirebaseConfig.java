@@ -38,7 +38,7 @@ public class FirebaseConfig {
         String base64 = System.getenv("FIREBASE_CREDENTIALS_BASE64");
         if (base64 != null && !base64.isBlank()) {
             log.info("Loading Firebase credentials from environment variable");
-            byte[] decoded = Base64.getDecoder().decode(base64);
+            byte[] decoded = Base64.getMimeDecoder().decode(base64);
             return new ByteArrayInputStream(decoded);
         }
         // Local dev: read from classpath file
