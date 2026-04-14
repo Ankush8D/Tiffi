@@ -2,8 +2,10 @@ package com.tiffi.service;
 
 import com.razorpay.Order;
 import com.razorpay.RazorpayClient;
+import com.tiffi.entity.Customer;
 import com.tiffi.entity.Payment;
 import com.tiffi.exception.TiffiException;
+import com.tiffi.repository.CustomerRepository;
 import com.tiffi.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,8 +17,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +29,7 @@ import java.util.Map;
 public class PaymentService {
 
     private final PaymentRepository paymentRepository;
+    private final CustomerRepository customerRepository;
 
     @Value("${razorpay.key.id}")
     private String razorpayKeyId;
@@ -90,6 +96,28 @@ public class PaymentService {
 
     public List<Payment> getHistory(Long customerId) {
         return paymentRepository.findByCustomerIdOrderByCreatedAtDesc(customerId);
+    }
+
+    public List<Map<String, Object>> getMonthlyPayments(Long ownerId, int month, int year) {
+        List<Payment> payments = paymentRepository.findByOwnerIdAndMonth(ownerId, month, year);
+        List<Long> customerIds = payments.stream().map(Payment::getCustomerId).distinct().collect(Collectors.toList());
+        Map<Long, String> nameMap = new HashMap<>();
+        customerRepository.findAllById(customerIds).forEach(c -> nameMap.put(c.getId(), c.getName()));
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Payment p : payments) {
+            Map<String, Object> row = new HashMap<>();
+            row.put("id", p.getId());
+            row.put("customerId", p.getCustomerId());
+            row.put("customerName", nameMap.getOrDefault(p.getCustomerId(), "Unknown"));
+            row.put("amount", p.getAmount());
+            row.put("paymentMode", p.getPaymentMode());
+            row.put("status", p.getStatus());
+            row.put("paymentDate", p.getPaymentDate());
+            row.put("notes", p.getNotes());
+            result.add(row);
+        }
+        return result;
     }
 
     public Map<String, Object> getMonthlySummary(Long ownerId, int month, int year) {

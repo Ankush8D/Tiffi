@@ -18,4 +18,7 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     BigDecimal sumCollectedByOwnerAndMonth(@Param("ownerId") Long ownerId, @Param("month") int month, @Param("year") int year);
 
     long countByOwnerIdAndStatus(Long ownerId, Payment.Status status);
+
+    @Query("SELECT p FROM Payment p WHERE p.ownerId = :ownerId AND MONTH(p.createdAt) = :month AND YEAR(p.createdAt) = :year ORDER BY p.createdAt DESC")
+    List<Payment> findByOwnerIdAndMonth(@Param("ownerId") Long ownerId, @Param("month") int month, @Param("year") int year);
 }

@@ -1,24 +1,61 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
-import { customerAPI, deliveryAPI } from '../../services/api';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, RefreshControl } from 'react-native';
+import { customerAPI, deliveryAPI, leaveAPI } from '../../services/api';
 import useAuthStore from '../../store/authStore';
 import { colors, spacing, radius, fontSizes, shadows } from '../../theme';
 
-export default function CustomerHomeScreen({ navigation }) {
+export default function CustomerHomeScreen() {
   const { user } = useAuthStore();
   const [data, setData] = useState(null);
+  const [deliveries, setDeliveries] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [applyingLeave, setApplyingLeave] = useState(false);
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const res = await customerAPI.get(user?.userId);
-        setData(res.data);
-      } catch (e) { console.log(e); }
-      finally { setLoading(false); }
-    };
-    load();
-  }, []);
+  const load = useCallback(async () => {
+    try {
+      const [custRes, delRes] = await Promise.all([
+        customerAPI.get(user?.userId),
+        deliveryAPI.getHistory(user?.userId, new Date().getMonth() + 1, new Date().getFullYear()),
+      ]);
+      setData(custRes.data);
+      // Filter today's deliveries
+      const today = new Date().toISOString().split('T')[0];
+      const todayDeliveries = (delRes.data || []).filter(d => d.date === today);
+      setDeliveries(todayDeliveries);
+    } catch (e) {
+      console.log(e);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [user?.userId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const applyLeave = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+    Alert.alert('Apply Leave', `Apply leave for ${tomorrowStr}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Apply', onPress: async () => {
+          setApplyingLeave(true);
+          try {
+            await leaveAPI.apply({ leaveDate: tomorrowStr });
+            Alert.alert('Success', 'Leave applied successfully!');
+          } catch (e) {
+            const msg = e?.message || 'Failed to apply leave';
+            Alert.alert('Error', msg);
+          } finally {
+            setApplyingLeave(false);
+          }
+        },
+      },
+    ]);
+  };
 
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
 
@@ -26,8 +63,17 @@ export default function CustomerHomeScreen({ navigation }) {
   const total = data?.tiffinsTotal ?? 1;
   const percent = Math.round((remaining / total) * 100);
 
+  const lunchDelivery = deliveries.find(d => d.mealType === 'lunch');
+  const dinnerDelivery = deliveries.find(d => d.mealType === 'dinner');
+
+  const getChipStyle = (delivered) => delivered ? colors.success : colors.warning;
+  const getChipText = (delivered) => delivered ? 'Delivered' : 'Pending';
+
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={colors.primary} />}>
+
       <View style={styles.header}>
         <Text style={styles.greeting}>Namaste, {data?.name?.split(' ')[0]}!</Text>
         <Text style={styles.date}>{new Date().toDateString()}</Text>
@@ -42,7 +88,7 @@ export default function CustomerHomeScreen({ navigation }) {
         </View>
         <Text style={styles.ringUsed}>{total - remaining} used this month</Text>
 
-        {remaining <= 5 && (
+        {remaining <= 5 && remaining > 0 && (
           <View style={styles.lowAlert}>
             <Text style={styles.lowAlertText}>Only {remaining} tiffins remaining! Renew soon.</Text>
           </View>
@@ -55,22 +101,24 @@ export default function CustomerHomeScreen({ navigation }) {
         <View style={styles.mealRow}>
           <Text style={styles.mealEmoji}>☀️</Text>
           <Text style={styles.mealLabel}>Lunch</Text>
-          <View style={[styles.statusChip, { backgroundColor: colors.warning }]}>
-            <Text style={styles.statusChipText}>Pending</Text>
+          <View style={[styles.statusChip, { backgroundColor: getChipStyle(lunchDelivery?.isDelivered) }]}>
+            <Text style={styles.statusChipText}>{getChipText(lunchDelivery?.isDelivered)}</Text>
           </View>
         </View>
         <View style={styles.mealRow}>
           <Text style={styles.mealEmoji}>🌙</Text>
           <Text style={styles.mealLabel}>Dinner</Text>
-          <View style={[styles.statusChip, { backgroundColor: colors.warning }]}>
-            <Text style={styles.statusChipText}>Pending</Text>
+          <View style={[styles.statusChip, { backgroundColor: getChipStyle(dinnerDelivery?.isDelivered) }]}>
+            <Text style={styles.statusChipText}>{getChipText(dinnerDelivery?.isDelivered)}</Text>
           </View>
         </View>
       </View>
 
       {/* Apply Leave */}
-      <TouchableOpacity style={styles.leaveBtn}>
-        <Text style={styles.leaveBtnText}>Apply Leave</Text>
+      <TouchableOpacity style={[styles.leaveBtn, applyingLeave && { opacity: 0.5 }]} onPress={applyLeave} disabled={applyingLeave}>
+        {applyingLeave
+          ? <ActivityIndicator color={colors.primary} />
+          : <Text style={styles.leaveBtnText}>Apply Leave for Tomorrow</Text>}
       </TouchableOpacity>
 
       {/* Payment Alert */}
@@ -82,6 +130,8 @@ export default function CustomerHomeScreen({ navigation }) {
           </TouchableOpacity>
         </View>
       )}
+
+      <View style={{ height: 32 }} />
     </ScrollView>
   );
 }

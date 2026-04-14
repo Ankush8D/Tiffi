@@ -18,6 +18,11 @@ import DashboardScreen from '../screens/owner/DashboardScreen';
 import DeliveryScreen from '../screens/owner/DeliveryScreen';
 import CustomersScreen from '../screens/owner/CustomersScreen';
 import MoreScreen from '../screens/owner/MoreScreen';
+import AddCustomerScreen from '../screens/owner/AddCustomerScreen';
+import CustomerDetailScreen from '../screens/owner/CustomerDetailScreen';
+import LeaveManagementScreen from '../screens/owner/LeaveManagementScreen';
+import PaymentsScreen from '../screens/owner/PaymentsScreen';
+import MenuManagementScreen from '../screens/owner/MenuManagementScreen';
 
 // Customer Screens
 import CustomerHomeScreen from '../screens/customer/CustomerHomeScreen';
@@ -76,12 +81,15 @@ export default function RootNavigator() {
         const token = await SecureStore.getItemAsync('access_token');
         const storedRole = await SecureStore.getItemAsync('user_role');
         const userId = await SecureStore.getItemAsync('user_id');
+        const refreshToken = await SecureStore.getItemAsync('refresh_token');
+        console.log('[restoreSession] token:', !!token, 'role:', storedRole, 'userId:', userId);
         if (token && storedRole && userId) {
-          setAuth({ accessToken: token, role: storedRole, userId, isNewUser: false });
+          setAuth({ accessToken: token, refreshToken: refreshToken || '', role: storedRole, userId, isNewUser: false });
         } else {
           setLoading(false);
         }
-      } catch {
+      } catch (e) {
+        console.log('[restoreSession] error:', e.message);
         setLoading(false);
       }
     };
@@ -106,7 +114,14 @@ export default function RootNavigator() {
             <Stack.Screen name="OTP" component={OTPScreen} />
           </>
         ) : role === 'OWNER' ? (
-          <Stack.Screen name="OwnerApp" component={OwnerTabs} />
+          <>
+            <Stack.Screen name="OwnerApp" component={OwnerTabs} />
+            <Stack.Screen name="AddCustomer" component={AddCustomerScreen} />
+            <Stack.Screen name="CustomerDetail" component={CustomerDetailScreen} />
+            <Stack.Screen name="LeaveManagement" component={LeaveManagementScreen} />
+            <Stack.Screen name="Payments" component={PaymentsScreen} />
+            <Stack.Screen name="MenuManagement" component={MenuManagementScreen} />
+          </>
         ) : (
           <Stack.Screen name="CustomerApp" component={CustomerTabs} />
         )}

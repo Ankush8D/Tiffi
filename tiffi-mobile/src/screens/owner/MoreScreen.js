@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'rea
 import useAuthStore from '../../store/authStore';
 import { colors, spacing, radius, fontSizes, shadows } from '../../theme';
 
-export default function MoreScreen() {
+export default function MoreScreen({ navigation }) {
   const { clearAuth } = useAuthStore();
 
   const handleLogout = () => {
@@ -20,9 +20,9 @@ export default function MoreScreen() {
       </View>
 
       <View style={styles.section}>
-        <MenuItem emoji="💰" label="Payments" sub="View and record payments" />
-        <MenuItem emoji="📋" label="Leave Requests" sub="Approve or reject leaves" />
-        <MenuItem emoji="🍽" label="Menu Management" sub="Set today's lunch & dinner" />
+        <MenuItem emoji="💰" label="Payments" sub="View and record payments" onPress={() => navigation.navigate('Payments')} />
+        <MenuItem emoji="📋" label="Leave Requests" sub="Approve or reject leaves" onPress={() => navigation.navigate('LeaveManagement')} />
+        <MenuItem emoji="🍽" label="Menu Management" sub="Set today's lunch & dinner" onPress={() => navigation.navigate('MenuManagement')} />
         <MenuItem emoji="📦" label="Packages" sub="Manage subscription packages" />
         <MenuItem emoji="🚴" label="Delivery Boys" sub="Manage delivery staff" />
         <MenuItem emoji="📊" label="Analytics" sub="Revenue and customer reports" />
@@ -36,9 +36,9 @@ export default function MoreScreen() {
   );
 }
 
-function MenuItem({ emoji, label, sub }) {
+function MenuItem({ emoji, label, sub, onPress }) {
   return (
-    <TouchableOpacity style={styles.menuItem}>
+    <TouchableOpacity style={styles.menuItem} onPress={onPress}>
       <Text style={styles.menuEmoji}>{emoji}</Text>
       <View style={styles.menuInfo}>
         <Text style={styles.menuLabel}>{label}</Text>

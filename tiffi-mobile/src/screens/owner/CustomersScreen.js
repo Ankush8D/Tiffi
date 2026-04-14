@@ -3,7 +3,7 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput, Activity
 import { customerAPI } from '../../services/api';
 import { colors, spacing, radius, fontSizes, shadows } from '../../theme';
 
-export default function CustomersScreen() {
+export default function CustomersScreen({ navigation }) {
   const [customers, setCustomers] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -47,8 +47,9 @@ export default function CustomersScreen() {
         data={customers}
         keyExtractor={(item) => String(item.id)}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(true); }} tintColor={colors.primary} />}
+        contentContainerStyle={{ paddingBottom: 100 }}
         renderItem={({ item }) => (
-          <View style={styles.card}>
+          <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('CustomerDetail', { customerId: item.id })}>
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>{item.name[0]}</Text>
             </View>
@@ -61,7 +62,7 @@ export default function CustomersScreen() {
               <View style={[styles.statusDot, { backgroundColor: getStatusColor(item.status) }]} />
               <Text style={styles.tiffins}>{item.tiffinsRemaining} left</Text>
             </View>
-          </View>
+          </TouchableOpacity>
         )}
         ListEmptyComponent={
           <View style={styles.empty}>
@@ -69,6 +70,10 @@ export default function CustomersScreen() {
           </View>
         }
       />
+
+      <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('AddCustomer')}>
+        <Text style={styles.fabText}>+ Add</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -91,4 +96,6 @@ const styles = StyleSheet.create({
   tiffins: { fontSize: fontSizes.small, fontWeight: '700', color: colors.textSecondary },
   empty: { padding: spacing.huge, alignItems: 'center' },
   emptyText: { color: colors.textSecondary, fontSize: fontSizes.body },
+  fab: { position: 'absolute', bottom: spacing.xxl, right: spacing.xxl, backgroundColor: colors.primary, borderRadius: radius.pill, paddingVertical: spacing.md, paddingHorizontal: spacing.xxl },
+  fabText: { color: colors.surface, fontWeight: '700', fontSize: fontSizes.body },
 });

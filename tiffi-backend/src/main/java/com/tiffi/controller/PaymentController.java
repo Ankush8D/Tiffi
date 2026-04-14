@@ -58,4 +58,13 @@ public class PaymentController {
         Long ownerId = (Long) auth.getPrincipal();
         return ResponseUtil.success(paymentService.getMonthlySummary(ownerId, month, year));
     }
+
+    @GetMapping("/list")
+    public ResponseEntity<Map<String, Object>> list(
+            Authentication auth,
+            @RequestParam int month,
+            @RequestParam int year) {
+        Long ownerId = (Long) auth.getPrincipal();
+        return ResponseUtil.success(paymentService.getMonthlyPayments(ownerId, month, year));
+    }
 }

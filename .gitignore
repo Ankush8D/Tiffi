@@ -3,7 +3,7 @@
 *.jar
 *.war
 target/
-.mvn/
+
 !**/src/main/**/target/
 !**/src/test/**/target/
 
@@ -15,7 +15,7 @@ firebase-service-account.json
 # Environment
 .env
 .env.local
-application-prod.properties
+
 
 # IDE
 .idea/

@@ -1,12 +1,12 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
-const BASE_URL = 'https://all-beds-tan.loca.lt/api/v1'; // localtunnel for testing
+const BASE_URL = 'https://mitigatory-alisha-humiliatedly.ngrok-free.dev/api/v1';
 
 const api = axios.create({
   baseURL: BASE_URL,
   timeout: 15000,
-  headers: { 'Content-Type': 'application/json', 'bypass-tunnel-reminder': 'true' },
+  headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
 });
 
 // Attach JWT token to every request
@@ -70,6 +70,12 @@ export const paymentAPI = {
   verify: (data) => api.post('/payments/verify-razorpay', data),
   history: (customerId) => api.get(`/payments/history/${customerId}`),
   summary: (month, year) => api.get('/payments/summary', { params: { month, year } }),
+  list: (month, year) => api.get('/payments/list', { params: { month, year } }),
+};
+
+export const menuAPI = {
+  getToday: () => api.get('/menu/today'),
+  setMenu: (mealType, description) => api.post('/menu', { mealType, description }),
 };
 
 export default api;
