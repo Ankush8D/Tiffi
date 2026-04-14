@@ -28,20 +28,19 @@ public class FirebaseConfig {
                 FirebaseApp.initializeApp(options);
                 log.info("Firebase initialized successfully");
             }
-        } catch (IOException e) {
-            log.warn("Firebase service account not found — Firebase auth will not work until configured");
+        } catch (Exception e) {
+            log.warn("Firebase initialization failed — phone auth will not work: {}", e.getMessage());
         }
     }
 
     private InputStream loadCredentials() throws IOException {
-        // Production: read from base64-encoded env var FIREBASE_CREDENTIALS_BASE64
         String base64 = System.getenv("FIREBASE_CREDENTIALS_BASE64");
         if (base64 != null && !base64.isBlank()) {
             log.info("Loading Firebase credentials from environment variable");
-            byte[] decoded = Base64.getMimeDecoder().decode(base64);
+            // Strip all whitespace before decoding
+            byte[] decoded = Base64.getDecoder().decode(base64.replaceAll("\\s+", ""));
             return new ByteArrayInputStream(decoded);
         }
-        // Local dev: read from classpath file
         log.info("Loading Firebase credentials from classpath file");
         return new ClassPathResource("firebase-service-account.json").getInputStream();
     }
