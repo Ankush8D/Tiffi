@@ -3,8 +3,7 @@ import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
   RefreshControl, ActivityIndicator, Modal, FlatList, SafeAreaView,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
+import { LinearGradient } from '../../components/LinearGradient';
 import { ownerAPI, customerAPI, deliveryAPI, paymentAPI } from '../../services/api';
 import { colors, spacing, radius, fontSizes, shadows, gradients } from '../../theme';
 
