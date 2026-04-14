@@ -3,30 +3,38 @@ import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
   RefreshControl, ActivityIndicator, Modal, FlatList, SafeAreaView,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { ownerAPI, customerAPI, deliveryAPI, paymentAPI } from '../../services/api';
-import { colors, spacing, radius, fontSizes, shadows } from '../../theme';
+import { colors, spacing, radius, fontSizes, shadows, gradients } from '../../theme';
 
-// ─── Stat detail configs ────────────────────────────────────────────────────
 const STAT_CONFIG = {
-  active:    { label: 'Active Customers', color: colors.success,  emoji: '✅' },
-  delivered: { label: 'Delivered Today',  color: colors.primary,  emoji: '🚴' },
-  pending:   { label: 'Pending Today',    color: colors.warning,  emoji: '⏳' },
-  unpaid:    { label: 'Unpaid / Due',     color: colors.error,    emoji: '💸' },
+  active:    { label: 'Active',    color: colors.success,  glow: colors.successGlow, icon: '●' },
+  delivered: { label: 'Delivered', color: colors.info,     glow: colors.infoGlow,    icon: '▲' },
+  pending:   { label: 'Pending',   color: colors.warning,  glow: colors.warningGlow, icon: '◆' },
+  unpaid:    { label: 'Unpaid',    color: colors.error,    glow: colors.errorGlow,   icon: '■' },
 };
 
-// ─── Bottom sheet ────────────────────────────────────────────────────────────
+// ─── Glass Card ──────────────────────────────────────────────────────────────
+function GlassCard({ style, children }) {
+  return (
+    <View style={[styles.glassCard, style]}>
+      {children}
+    </View>
+  );
+}
+
+// ─── Bottom Sheet ─────────────────────────────────────────────────────────────
 function DetailSheet({ type, visible, onClose, navigation }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const cfg = STAT_CONFIG[type] || {};
-
   const now = new Date();
 
   useEffect(() => {
     if (!visible || !type) return;
     setLoading(true);
     setItems([]);
-
     const fetch = async () => {
       try {
         if (type === 'active') {
@@ -36,301 +44,306 @@ function DetailSheet({ type, visible, onClose, navigation }) {
           const res = await deliveryAPI.getToday();
           const all = res.data || [];
           const filtered = all.filter(d => d.status === (type === 'delivered' ? 'delivered' : 'pending'));
-          // Deduplicate by customerId — show one row per customer
           const seen = new Set();
           const unique = [];
           for (const d of filtered) {
-            if (!seen.has(d.customerId)) {
-              seen.add(d.customerId);
-              unique.push(d);
-            }
+            if (!seen.has(d.customerId)) { seen.add(d.customerId); unique.push(d); }
           }
           setItems(unique);
         } else if (type === 'unpaid') {
           const res = await paymentAPI.list(now.getMonth() + 1, now.getFullYear());
-          const all = res.data || [];
-          setItems(all.filter(p => p.status === 'pending' || p.status === 'partial'));
+          setItems((res.data || []).filter(p => p.status === 'pending' || p.status === 'partial'));
         }
-      } catch (e) {
-        console.log(e);
-      } finally {
-        setLoading(false);
-      }
+      } catch (e) { console.log(e); }
+      finally { setLoading(false); }
     };
     fetch();
   }, [visible, type]);
 
-  const renderItem = ({ item }) => {
-    if (type === 'active') {
-      return (
-        <TouchableOpacity
-          style={styles.row}
-          onPress={() => { onClose(); navigation.navigate('CustomerDetail', { customerId: item.id }); }}>
-          <View style={[styles.rowAvatar, { backgroundColor: colors.success + '22' }]}>
-            <Text style={[styles.rowAvatarText, { color: colors.success }]}>{item.name?.[0]}</Text>
-          </View>
-          <View style={styles.rowInfo}>
-            <Text style={styles.rowName}>{item.name}</Text>
-            <Text style={styles.rowSub}>{item.customerCode} • {item.zone || 'No zone'}</Text>
-          </View>
-          <Text style={styles.rowRight}>{item.tiffinsRemaining} left</Text>
-        </TouchableOpacity>
-      );
-    }
-    if (type === 'delivered') {
-      return (
-        <View style={styles.row}>
-          <View style={[styles.rowAvatar, { backgroundColor: colors.primary + '22' }]}>
-            <Text style={[styles.rowAvatarText, { color: colors.primary }]}>{item.name?.[0]}</Text>
-          </View>
-          <View style={styles.rowInfo}>
-            <Text style={styles.rowName}>{item.name}</Text>
-            <Text style={styles.rowSub}>{item.customerCode} • {item.zone || '—'}</Text>
-          </View>
-          <View style={[styles.badge, { backgroundColor: colors.success }]}>
-            <Text style={styles.badgeText}>Delivered</Text>
-          </View>
+  const renderItem = ({ item }) => (
+    <TouchableOpacity
+      style={styles.sheetRow}
+      onPress={() => {
+        onClose();
+        if (type === 'active') navigation.navigate('CustomerDetail', { customerId: item.id });
+        if (type === 'unpaid') navigation.navigate('Payments');
+      }}
+      activeOpacity={0.7}>
+      <View style={[styles.sheetAvatar, { backgroundColor: cfg.glow }]}>
+        <Text style={[styles.sheetAvatarText, { color: cfg.color }]}>
+          {(item.name || item.customerName || '?')[0].toUpperCase()}
+        </Text>
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.sheetRowName}>{item.name || item.customerName}</Text>
+        <Text style={styles.sheetRowSub}>
+          {item.customerCode || item.paymentMode?.toUpperCase()} • {item.zone || item.status || '—'}
+        </Text>
+      </View>
+      {type === 'active' && <Text style={[styles.sheetRowBadge, { color: cfg.color }]}>{item.tiffinsRemaining} left</Text>}
+      {type === 'unpaid' && <Text style={[styles.sheetRowBadge, { color: colors.error }]}>₹{Number(item.amount).toLocaleString('en-IN')}</Text>}
+      {(type === 'delivered' || type === 'pending') && (
+        <View style={[styles.pill, { backgroundColor: cfg.glow, borderColor: cfg.color }]}>
+          <Text style={[styles.pillText, { color: cfg.color }]}>{type}</Text>
         </View>
-      );
-    }
-    if (type === 'pending') {
-      return (
-        <View style={styles.row}>
-          <View style={[styles.rowAvatar, { backgroundColor: colors.warning + '33' }]}>
-            <Text style={[styles.rowAvatarText, { color: colors.warning }]}>{item.name?.[0]}</Text>
-          </View>
-          <View style={styles.rowInfo}>
-            <Text style={styles.rowName}>{item.name}</Text>
-            <Text style={styles.rowSub}>{item.customerCode} • {item.zone || '—'}</Text>
-          </View>
-          <View style={[styles.badge, { backgroundColor: colors.warning }]}>
-            <Text style={styles.badgeText}>Pending</Text>
-          </View>
-        </View>
-      );
-    }
-    if (type === 'unpaid') {
-      return (
-        <TouchableOpacity
-          style={styles.row}
-          onPress={() => { onClose(); navigation.navigate('Payments'); }}>
-          <View style={[styles.rowAvatar, { backgroundColor: colors.error + '22' }]}>
-            <Text style={[styles.rowAvatarText, { color: colors.error }]}>{item.customerName?.[0] || '?'}</Text>
-          </View>
-          <View style={styles.rowInfo}>
-            <Text style={styles.rowName}>{item.customerName}</Text>
-            <Text style={styles.rowSub}>{item.paymentMode?.toUpperCase()} • {item.status}</Text>
-          </View>
-          <Text style={[styles.rowRight, { color: colors.error }]}>₹{Number(item.amount).toLocaleString('en-IN')}</Text>
-        </TouchableOpacity>
-      );
-    }
-    return null;
-  };
+      )}
+    </TouchableOpacity>
+  );
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose} />
-      <SafeAreaView style={styles.sheet}>
-        {/* Handle */}
-        <View style={styles.handle} />
-
-        {/* Title */}
-        <View style={styles.sheetHeader}>
-          <Text style={styles.sheetEmoji}>{cfg.emoji}</Text>
+      <View style={styles.sheet}>
+        <View style={styles.sheetHandle} />
+        <View style={styles.sheetHeaderRow}>
+          <View style={[styles.sheetIconDot, { backgroundColor: cfg.glow, borderColor: cfg.color }]}>
+            <Text style={{ color: cfg.color, fontSize: 14 }}>{cfg.icon}</Text>
+          </View>
           <Text style={[styles.sheetTitle, { color: cfg.color }]}>{cfg.label}</Text>
-          <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-            <Text style={styles.closeBtnText}>✕</Text>
+          <TouchableOpacity onPress={onClose} style={styles.sheetClose}>
+            <Text style={styles.sheetCloseText}>✕</Text>
           </TouchableOpacity>
         </View>
-
         {loading ? (
           <View style={styles.sheetCenter}>
             <ActivityIndicator size="large" color={cfg.color} />
           </View>
         ) : items.length === 0 ? (
           <View style={styles.sheetCenter}>
-            <Text style={styles.emptyEmoji}>🎉</Text>
-            <Text style={styles.emptyText}>Nothing here!</Text>
+            <Text style={{ fontSize: 40, marginBottom: 12 }}>🎉</Text>
+            <Text style={styles.emptyText}>All clear!</Text>
           </View>
         ) : (
           <FlatList
             data={items}
             keyExtractor={(_, i) => String(i)}
             renderItem={renderItem}
-            contentContainerStyle={{ paddingBottom: 32 }}
-            ItemSeparatorComponent={() => <View style={styles.divider} />}
+            contentContainerStyle={{ paddingBottom: 40 }}
+            ItemSeparatorComponent={() => <View style={styles.sheetDivider} />}
           />
         )}
-      </SafeAreaView>
+      </View>
     </Modal>
   );
 }
 
-// ─── Main screen ─────────────────────────────────────────────────────────────
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function DashboardScreen({ navigation }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [sheet, setSheet] = useState(null); // 'active' | 'delivered' | 'pending' | 'unpaid'
+  const [sheet, setSheet] = useState(null);
 
   const load = useCallback(async () => {
     try {
       const res = await ownerAPI.getDashboard();
       setData(res.data);
-    } catch (e) {
-      console.log(e);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+    } catch (e) { console.log(e); }
+    finally { setLoading(false); setRefreshing(false); }
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
   if (loading) return (
-    <View style={styles.center}>
+    <LinearGradient colors={gradients.dark} style={styles.center}>
       <ActivityIndicator size="large" color={colors.primary} />
-    </View>
+    </LinearGradient>
   );
 
+  const greeting = () => {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good Morning';
+    if (h < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  };
+
+  const stats = [
+    { key: 'active',    value: data?.totalActiveCustomers ?? 0 },
+    { key: 'delivered', value: data?.deliveredToday ?? 0 },
+    { key: 'pending',   value: data?.pendingToday ?? 0 },
+    { key: 'unpaid',    value: data?.pendingPayments ?? 0 },
+  ];
+
   return (
-    <>
+    <LinearGradient colors={gradients.dark} style={{ flex: 1 }}>
       <ScrollView
-        style={styles.container}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={colors.primary} />}>
+        contentContainerStyle={{ paddingBottom: 40 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={colors.primary} />}
+        showsVerticalScrollIndicator={false}>
 
-        <View style={styles.header}>
-          <Text style={styles.greeting}>Good morning!</Text>
-          <Text style={styles.date}>{new Date().toDateString()}</Text>
+        {/* ── Header ── */}
+        <LinearGradient colors={['#1E0A3C', '#0A0A18']} style={styles.header}>
+          <SafeAreaView>
+            <View style={styles.headerInner}>
+              <View>
+                <Text style={styles.greeting}>{greeting()} 👋</Text>
+                <Text style={styles.subGreeting}>
+                  {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}
+                </Text>
+              </View>
+              <View style={styles.headerAvatar}>
+                <Text style={styles.headerAvatarText}>S</Text>
+              </View>
+            </View>
+          </SafeAreaView>
+        </LinearGradient>
+
+        {/* ── Stats Grid ── */}
+        <View style={styles.statsGrid}>
+          {stats.map(({ key, value }) => {
+            const cfg = STAT_CONFIG[key];
+            return (
+              <TouchableOpacity key={key} onPress={() => setSheet(key)} activeOpacity={0.75} style={styles.statWrap}>
+                <GlassCard style={styles.statCard}>
+                  <View style={[styles.statDot, { backgroundColor: cfg.glow }]}>
+                    <Text style={{ color: cfg.color, fontSize: 10, fontWeight: '800' }}>{cfg.icon}</Text>
+                  </View>
+                  <Text style={[styles.statValue, { color: cfg.color, textShadowColor: cfg.glow, textShadowRadius: 8 }]}>
+                    {value}
+                  </Text>
+                  <Text style={styles.statLabel}>{cfg.label}</Text>
+                  <View style={[styles.statBorder, { backgroundColor: cfg.color }]} />
+                </GlassCard>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
-        {/* Stats Row — now tappable */}
-        <View style={styles.statsRow}>
-          <StatCard label="Active"    value={data?.totalActiveCustomers ?? 0} color={colors.success} onPress={() => setSheet('active')} />
-          <StatCard label="Delivered" value={data?.deliveredToday ?? 0}       color={colors.primary} onPress={() => setSheet('delivered')} />
-          <StatCard label="Pending"   value={data?.pendingToday ?? 0}         color={colors.warning} onPress={() => setSheet('pending')} />
-          <StatCard label="Unpaid"    value={data?.pendingPayments ?? 0}      color={colors.error}   onPress={() => setSheet('unpaid')} />
-        </View>
-
-        {/* Quick Actions */}
+        {/* ── Quick Actions ── */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.actionsRow}>
-            <ActionBtn label="Deliveries" emoji="🚴" onPress={() => navigation.navigate('Delivery')} />
-            <ActionBtn label="Customers"  emoji="👥" onPress={() => navigation.navigate('Customers')} />
-            <ActionBtn label="Payments"   emoji="💰" onPress={() => navigation.navigate('Payments')} />
+            {[
+              { label: 'Deliveries', icon: '🚴', screen: 'Delivery', color: colors.info },
+              { label: 'Customers',  icon: '👥', screen: 'Customers', color: colors.success },
+              { label: 'More',       icon: '⚙️', screen: 'More', color: colors.accent1 },
+            ].map(a => (
+              <TouchableOpacity key={a.label} onPress={() => navigation.navigate(a.screen)} activeOpacity={0.75} style={{ flex: 1 }}>
+                <GlassCard style={styles.actionCard}>
+                  <Text style={styles.actionIcon}>{a.icon}</Text>
+                  <Text style={[styles.actionLabel, { color: a.color }]}>{a.label}</Text>
+                </GlassCard>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
 
-        {/* Low Tiffin Alerts */}
+        {/* ── Low Tiffin Alerts ── */}
         {data?.lowTiffinCustomers?.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Low Tiffin Alert</Text>
-            {data.lowTiffinCustomers.map((c) => (
-              <TouchableOpacity
-                key={c.id}
-                style={styles.alertCard}
-                onPress={() => navigation.navigate('CustomerDetail', { customerId: c.id })}>
-                <Text style={styles.alertName}>{c.name} ({c.customerCode})</Text>
-                <Text style={styles.alertBadge}>{c.tiffinsRemaining} left</Text>
+            <Text style={styles.sectionTitle}>⚠️  Low Tiffin Alert</Text>
+            {data.lowTiffinCustomers.map(c => (
+              <TouchableOpacity key={c.id} onPress={() => navigation.navigate('CustomerDetail', { customerId: c.id })} activeOpacity={0.75}>
+                <GlassCard style={styles.alertRow}>
+                  <View style={[styles.alertDot, { backgroundColor: colors.warningGlow }]}>
+                    <Text style={{ color: colors.warning, fontWeight: '800' }}>{c.name[0]}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.alertName}>{c.name}</Text>
+                    <Text style={styles.alertSub}>{c.customerCode}</Text>
+                  </View>
+                  <View style={[styles.pill, { backgroundColor: colors.warningGlow, borderColor: colors.warning }]}>
+                    <Text style={[styles.pillText, { color: colors.warning }]}>{c.tiffinsRemaining} left</Text>
+                  </View>
+                </GlassCard>
               </TouchableOpacity>
             ))}
           </View>
         )}
 
-        {/* Expiring Soon */}
+        {/* ── Expiring Soon ── */}
         {data?.expiringCustomers?.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Expiring This Week</Text>
-            {data.expiringCustomers.map((c) => (
-              <TouchableOpacity
-                key={c.id}
-                style={styles.alertCard}
-                onPress={() => navigation.navigate('CustomerDetail', { customerId: c.id })}>
-                <Text style={styles.alertName}>{c.name} ({c.customerCode})</Text>
-                <Text style={[styles.alertBadge, { backgroundColor: colors.warning }]}>Expires {c.subscriptionEnd}</Text>
+            <Text style={styles.sectionTitle}>📅  Expiring This Week</Text>
+            {data.expiringCustomers.map(c => (
+              <TouchableOpacity key={c.id} onPress={() => navigation.navigate('CustomerDetail', { customerId: c.id })} activeOpacity={0.75}>
+                <GlassCard style={styles.alertRow}>
+                  <View style={[styles.alertDot, { backgroundColor: colors.errorGlow }]}>
+                    <Text style={{ color: colors.error, fontWeight: '800' }}>{c.name[0]}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.alertName}>{c.name}</Text>
+                    <Text style={styles.alertSub}>{c.subscriptionEnd}</Text>
+                  </View>
+                  <View style={[styles.pill, { backgroundColor: colors.errorGlow, borderColor: colors.error }]}>
+                    <Text style={[styles.pillText, { color: colors.error }]}>Expiring</Text>
+                  </View>
+                </GlassCard>
               </TouchableOpacity>
             ))}
           </View>
         )}
 
-        <View style={{ height: 32 }} />
       </ScrollView>
 
-      <DetailSheet
-        type={sheet}
-        visible={!!sheet}
-        onClose={() => setSheet(null)}
-        navigation={navigation}
-      />
-    </>
-  );
-}
-
-function StatCard({ label, value, color, onPress }) {
-  return (
-    <TouchableOpacity style={[styles.statCard, { borderTopColor: color }]} onPress={onPress} activeOpacity={0.7}>
-      <Text style={[styles.statValue, { color }]}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-      <Text style={[styles.statTap, { color }]}>tap ›</Text>
-    </TouchableOpacity>
-  );
-}
-
-function ActionBtn({ label, emoji, onPress }) {
-  return (
-    <TouchableOpacity style={styles.actionBtn} onPress={onPress}>
-      <Text style={styles.actionEmoji}>{emoji}</Text>
-      <Text style={styles.actionLabel}>{label}</Text>
-    </TouchableOpacity>
+      <DetailSheet type={sheet} visible={!!sheet} onClose={() => setSheet(null)} navigation={navigation} />
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
-  header: { padding: spacing.xxl, paddingBottom: spacing.lg, backgroundColor: colors.primary },
-  greeting: { fontSize: fontSizes.h2, fontWeight: '700', color: colors.surface },
-  date: { fontSize: fontSizes.small, color: colors.surface, opacity: 0.8, marginTop: 2 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
-  statsRow: { flexDirection: 'row', padding: spacing.lg, gap: spacing.sm },
-  statCard: { flex: 1, backgroundColor: colors.surface, borderRadius: radius.medium, padding: spacing.md, alignItems: 'center', borderTopWidth: 3, ...shadows.card },
-  statValue: { fontSize: fontSizes.h2, fontWeight: '800' },
-  statLabel: { fontSize: 11, color: colors.textSecondary, marginTop: 2 },
-  statTap: { fontSize: 9, fontWeight: '600', marginTop: 4, opacity: 0.7 },
+  // Header
+  header: { paddingBottom: spacing.xl },
+  headerInner: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.xl, paddingTop: spacing.lg },
+  greeting: { fontSize: fontSizes.h2, fontWeight: '800', color: colors.textPrimary },
+  subGreeting: { fontSize: fontSizes.small, color: colors.textSecondary, marginTop: 2 },
+  headerAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.primaryGlow, borderWidth: 2, borderColor: colors.primary, justifyContent: 'center', alignItems: 'center' },
+  headerAvatarText: { color: colors.primary, fontWeight: '800', fontSize: fontSizes.body },
 
-  section: { padding: spacing.lg, paddingTop: spacing.sm },
-  sectionTitle: { fontSize: fontSizes.h3, fontWeight: '700', color: colors.textPrimary, marginBottom: spacing.md },
+  // Glass card
+  glassCard: {
+    backgroundColor: colors.glass,
+    borderRadius: radius.medium,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    ...shadows.card,
+  },
+
+  // Stats
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', padding: spacing.lg, gap: spacing.md },
+  statWrap: { width: '47%' },
+  statCard: { padding: spacing.lg, alignItems: 'flex-start', overflow: 'hidden' },
+  statDot: { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginBottom: spacing.md },
+  statValue: { fontSize: 36, fontWeight: '900', letterSpacing: -1 },
+  statLabel: { fontSize: fontSizes.tiny, color: colors.textSecondary, fontWeight: '600', marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
+  statBorder: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 2, opacity: 0.6 },
+
+  // Actions
+  section: { paddingHorizontal: spacing.lg, marginBottom: spacing.lg },
+  sectionTitle: { fontSize: fontSizes.small, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 1, marginBottom: spacing.md },
   actionsRow: { flexDirection: 'row', gap: spacing.md },
-  actionBtn: { flex: 1, backgroundColor: colors.surface, borderRadius: radius.medium, padding: spacing.lg, alignItems: 'center', ...shadows.card },
-  actionEmoji: { fontSize: 28, marginBottom: spacing.xs },
-  actionLabel: { fontSize: fontSizes.small, fontWeight: '600', color: colors.textPrimary },
-  alertCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.medium, padding: spacing.md, marginBottom: spacing.sm, ...shadows.card },
-  alertName: { fontSize: fontSizes.body, color: colors.textPrimary, fontWeight: '500' },
-  alertBadge: { backgroundColor: colors.error, color: colors.surface, fontSize: fontSizes.small, fontWeight: '700', paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: radius.pill, overflow: 'hidden' },
+  actionCard: { padding: spacing.lg, alignItems: 'center' },
+  actionIcon: { fontSize: 26, marginBottom: spacing.sm },
+  actionLabel: { fontSize: fontSizes.tiny, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
 
-  // Sheet styles
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' },
-  sheet: { backgroundColor: colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '75%', minHeight: 200 },
-  handle: { width: 36, height: 4, backgroundColor: colors.border, borderRadius: 2, alignSelf: 'center', marginTop: spacing.sm, marginBottom: spacing.xs },
-  sheetHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
-  sheetEmoji: { fontSize: 20, marginRight: spacing.sm },
-  sheetTitle: { flex: 1, fontSize: fontSizes.h3, fontWeight: '700' },
-  closeBtn: { padding: spacing.sm },
-  closeBtnText: { fontSize: fontSizes.body, color: colors.textSecondary, fontWeight: '600' },
+  // Alert rows
+  alertRow: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, marginBottom: spacing.sm, gap: spacing.md },
+  alertDot: { width: 38, height: 38, borderRadius: 19, justifyContent: 'center', alignItems: 'center' },
+  alertName: { fontSize: fontSizes.body, fontWeight: '700', color: colors.textPrimary },
+  alertSub: { fontSize: fontSizes.tiny, color: colors.textSecondary, marginTop: 2 },
+
+  // Pill badge
+  pill: { paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.pill, borderWidth: 1 },
+  pillText: { fontSize: fontSizes.tiny, fontWeight: '700' },
+
+  // Sheet
+  overlay: { flex: 1, backgroundColor: colors.overlay },
+  sheet: { backgroundColor: '#13132B', borderTopLeftRadius: radius.large, borderTopRightRadius: radius.large, borderTopWidth: 1, borderColor: colors.glassBorder, maxHeight: '75%', minHeight: 200 },
+  sheetHandle: { width: 36, height: 4, backgroundColor: colors.glassBorder, borderRadius: 2, alignSelf: 'center', marginTop: spacing.md },
+  sheetHeaderRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.divider },
+  sheetIconDot: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, justifyContent: 'center', alignItems: 'center', marginRight: spacing.sm },
+  sheetTitle: { flex: 1, fontSize: fontSizes.h3, fontWeight: '800' },
+  sheetClose: { padding: spacing.sm },
+  sheetCloseText: { color: colors.textSecondary, fontSize: fontSizes.body },
   sheetCenter: { alignItems: 'center', justifyContent: 'center', padding: spacing.huge },
-  emptyEmoji: { fontSize: 40, marginBottom: spacing.md },
-  emptyText: { fontSize: fontSizes.body, color: colors.textSecondary },
-
-  row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
-  rowAvatar: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginRight: spacing.md },
-  rowAvatarText: { fontWeight: '800', fontSize: fontSizes.body },
-  rowInfo: { flex: 1 },
-  rowName: { fontSize: fontSizes.body, fontWeight: '700', color: colors.textPrimary },
-  rowSub: { fontSize: fontSizes.small, color: colors.textSecondary, marginTop: 2 },
-  rowRight: { fontSize: fontSizes.body, fontWeight: '700', color: colors.textPrimary },
-  badge: { paddingHorizontal: spacing.md, paddingVertical: 4, borderRadius: radius.pill },
-  badgeText: { fontSize: 11, fontWeight: '700', color: colors.surface },
-  divider: { height: 1, backgroundColor: colors.border, marginLeft: 68 },
+  emptyText: { color: colors.textSecondary, fontSize: fontSizes.body },
+  sheetRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, gap: spacing.md },
+  sheetAvatar: { width: 42, height: 42, borderRadius: 21, justifyContent: 'center', alignItems: 'center' },
+  sheetAvatarText: { fontWeight: '800', fontSize: fontSizes.body },
+  sheetRowName: { fontSize: fontSizes.body, fontWeight: '700', color: colors.textPrimary },
+  sheetRowSub: { fontSize: fontSizes.tiny, color: colors.textSecondary, marginTop: 2 },
+  sheetRowBadge: { fontSize: fontSizes.body, fontWeight: '800' },
+  sheetDivider: { height: 1, backgroundColor: colors.divider, marginLeft: 70 },
 });
