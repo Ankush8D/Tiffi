@@ -1,34 +1,34 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  RefreshControl, ActivityIndicator, Modal, FlatList, SafeAreaView,
+  View, Text, ScrollView, TouchableOpacity,
+  RefreshControl, ActivityIndicator, Modal, FlatList,
 } from 'react-native';
-import { LinearGradient } from '../../components/LinearGradient';
 import { ownerAPI, customerAPI, deliveryAPI, paymentAPI } from '../../services/api';
-import { colors, spacing, radius, fontSizes, shadows, gradients } from '../../theme';
+import { useTheme } from '../../context/ThemeContext';
+import { GradBg, OrbDecor } from '../../components/Grad';
+import { Card } from '../../components/Card';
+import { Avatar } from '../../components/Avatar';
+import { Badge } from '../../components/Badge';
+import { ScreenHeader } from '../../components/ScreenHeader';
+import { EmptyState } from '../../components/EmptyState';
+import { spacing, fontSizes, fonts, radius } from '../../theme';
 
-const STAT_CONFIG = {
-  active:    { label: 'Active',    color: colors.success,  glow: colors.successGlow, icon: '●' },
-  delivered: { label: 'Delivered', color: colors.info,     glow: colors.infoGlow,    icon: '▲' },
-  pending:   { label: 'Pending',   color: colors.warning,  glow: colors.warningGlow, icon: '◆' },
-  unpaid:    { label: 'Unpaid',    color: colors.error,    glow: colors.errorGlow,   icon: '■' },
-};
-
-// ─── Glass Card ──────────────────────────────────────────────────────────────
-function GlassCard({ style, children }) {
-  return (
-    <View style={[styles.glassCard, style]}>
-      {children}
-    </View>
-  );
-}
-
-// ─── Bottom Sheet ─────────────────────────────────────────────────────────────
+// ─── Bottom Sheet ──────────────────────────────────────────────────────────────
 function DetailSheet({ type, visible, onClose, navigation }) {
+  const { theme } = useTheme();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const cfg = STAT_CONFIG[type] || {};
   const now = new Date();
+
+  const STAT_CONFIG = {
+    active:    { label: 'Active',    colorKey: 'success' },
+    delivered: { label: 'Delivered', colorKey: 'info' },
+    pending:   { label: 'Pending',   colorKey: 'warning' },
+    unpaid:    { label: 'Unpaid',    colorKey: 'error' },
+  };
+
+  const cfg = STAT_CONFIG[type] || {};
+  const accentColor = cfg.colorKey ? theme[cfg.colorKey] : theme.primary;
 
   useEffect(() => {
     if (!visible || !type) return;
@@ -61,64 +61,78 @@ function DetailSheet({ type, visible, onClose, navigation }) {
 
   const renderItem = ({ item }) => (
     <TouchableOpacity
-      style={styles.sheetRow}
+      style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, gap: spacing.md }}
       onPress={() => {
         onClose();
         if (type === 'active') navigation.navigate('CustomerDetail', { customerId: item.id });
         if (type === 'unpaid') navigation.navigate('Payments');
       }}
       activeOpacity={0.7}>
-      <View style={[styles.sheetAvatar, { backgroundColor: cfg.glow }]}>
-        <Text style={[styles.sheetAvatarText, { color: cfg.color }]}>
-          {(item.name || item.customerName || '?')[0].toUpperCase()}
-        </Text>
-      </View>
+      <Avatar name={item.name || item.customerName || '?'} size={42} />
       <View style={{ flex: 1 }}>
-        <Text style={styles.sheetRowName}>{item.name || item.customerName}</Text>
-        <Text style={styles.sheetRowSub}>
+        <Text style={{ color: theme.text, fontSize: fontSizes.body, fontFamily: fonts.semibold }}>{item.name || item.customerName}</Text>
+        <Text style={{ color: theme.textSecondary, fontSize: fontSizes.sm, fontFamily: fonts.regular, marginTop: 2 }}>
           {item.customerCode || item.paymentMode?.toUpperCase()} • {item.zone || item.status || '—'}
         </Text>
       </View>
-      {type === 'active' && <Text style={[styles.sheetRowBadge, { color: cfg.color }]}>{item.tiffinsRemaining} left</Text>}
-      {type === 'unpaid' && <Text style={[styles.sheetRowBadge, { color: colors.error }]}>₹{Number(item.amount).toLocaleString('en-IN')}</Text>}
+      {type === 'active' && (
+        <Text style={{ color: accentColor, fontSize: fontSizes.sm, fontFamily: fonts.bold }}>{item.tiffinsRemaining} left</Text>
+      )}
+      {type === 'unpaid' && (
+        <Text style={{ color: theme.error, fontSize: fontSizes.body, fontFamily: fonts.bold }}>₹{Number(item.amount).toLocaleString('en-IN')}</Text>
+      )}
       {(type === 'delivered' || type === 'pending') && (
-        <View style={[styles.pill, { backgroundColor: cfg.glow, borderColor: cfg.color }]}>
-          <Text style={[styles.pillText, { color: cfg.color }]}>{type}</Text>
-        </View>
+        <Badge status={type} />
       )}
     </TouchableOpacity>
   );
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose} />
-      <View style={styles.sheet}>
-        <View style={styles.sheetHandle} />
-        <View style={styles.sheetHeaderRow}>
-          <View style={[styles.sheetIconDot, { backgroundColor: cfg.glow, borderColor: cfg.color }]}>
-            <Text style={{ color: cfg.color, fontSize: 14 }}>{cfg.icon}</Text>
+      <TouchableOpacity style={{ flex: 1, backgroundColor: theme.overlay }} activeOpacity={1} onPress={onClose} />
+      <View style={{
+        backgroundColor: theme.sheetBg,
+        borderTopLeftRadius: radius.xl,
+        borderTopRightRadius: radius.xl,
+        borderTopWidth: 1,
+        borderColor: theme.border,
+        maxHeight: '75%',
+        minHeight: 200,
+      }}>
+        <View style={{ width: 36, height: 4, backgroundColor: theme.border, borderRadius: 2, alignSelf: 'center', marginTop: spacing.md }} />
+        <View style={{
+          flexDirection: 'row', alignItems: 'center',
+          paddingHorizontal: spacing.lg, paddingVertical: spacing.md,
+          borderBottomWidth: 1, borderBottomColor: theme.border,
+        }}>
+          <View style={{
+            width: 32, height: 32, borderRadius: 16,
+            backgroundColor: cfg.colorKey ? theme[cfg.colorKey + 'Light'] : theme.primaryLight,
+            borderWidth: 1, borderColor: accentColor + '55',
+            justifyContent: 'center', alignItems: 'center', marginRight: spacing.sm,
+          }}>
+            <Text style={{ fontSize: 14 }}>
+              {type === 'active' ? '●' : type === 'delivered' ? '✓' : type === 'pending' ? '◆' : '₹'}
+            </Text>
           </View>
-          <Text style={[styles.sheetTitle, { color: cfg.color }]}>{cfg.label}</Text>
-          <TouchableOpacity onPress={onClose} style={styles.sheetClose}>
-            <Text style={styles.sheetCloseText}>✕</Text>
+          <Text style={{ flex: 1, color: accentColor, fontSize: fontSizes.h3, fontFamily: fonts.bold }}>{cfg.label}</Text>
+          <TouchableOpacity onPress={onClose} style={{ padding: spacing.sm }}>
+            <Text style={{ color: theme.textSecondary, fontSize: fontSizes.body, fontFamily: fonts.regular }}>✕</Text>
           </TouchableOpacity>
         </View>
         {loading ? (
-          <View style={styles.sheetCenter}>
-            <ActivityIndicator size="large" color={cfg.color} />
+          <View style={{ alignItems: 'center', justifyContent: 'center', padding: spacing.huge }}>
+            <ActivityIndicator size="large" color={accentColor} />
           </View>
         ) : items.length === 0 ? (
-          <View style={styles.sheetCenter}>
-            <Text style={{ fontSize: 40, marginBottom: 12 }}>🎉</Text>
-            <Text style={styles.emptyText}>All clear!</Text>
-          </View>
+          <EmptyState emoji="🎉" title="All clear!" />
         ) : (
           <FlatList
             data={items}
             keyExtractor={(_, i) => String(i)}
             renderItem={renderItem}
             contentContainerStyle={{ paddingBottom: 40 }}
-            ItemSeparatorComponent={() => <View style={styles.sheetDivider} />}
+            ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: theme.border, marginLeft: 70 }} />}
           />
         )}
       </View>
@@ -128,6 +142,7 @@ function DetailSheet({ type, visible, onClose, navigation }) {
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function DashboardScreen({ navigation }) {
+  const { theme, isDark } = useTheme();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -144,9 +159,9 @@ export default function DashboardScreen({ navigation }) {
   useEffect(() => { load(); }, [load]);
 
   if (loading) return (
-    <LinearGradient colors={gradients.dark} style={styles.center}>
-      <ActivityIndicator size="large" color={colors.primary} />
-    </LinearGradient>
+    <GradBg colors={isDark ? ['#1A0A2E', '#0B0E1A'] : ['#FFFFFF', theme.background]} style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <ActivityIndicator size="large" color={theme.primary} />
+    </GradBg>
   );
 
   const greeting = () => {
@@ -157,71 +172,76 @@ export default function DashboardScreen({ navigation }) {
   };
 
   const stats = [
-    { key: 'active',    value: data?.totalActiveCustomers ?? 0 },
-    { key: 'delivered', value: data?.deliveredToday ?? 0 },
-    { key: 'pending',   value: data?.pendingToday ?? 0 },
-    { key: 'unpaid',    value: data?.pendingPayments ?? 0 },
+    { key: 'active',    value: data?.totalActiveCustomers ?? 0, colorKey: 'success', icon: '👥', label: 'Active' },
+    { key: 'delivered', value: data?.deliveredToday ?? 0,       colorKey: 'info',    icon: '✅', label: 'Delivered' },
+    { key: 'pending',   value: data?.pendingToday ?? 0,         colorKey: 'warning', icon: '⏳', label: 'Pending' },
+    { key: 'unpaid',    value: data?.pendingPayments ?? 0,      colorKey: 'error',   icon: '💰', label: 'Unpaid' },
   ];
 
+  const dateStr = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
+
   return (
-    <LinearGradient colors={gradients.dark} style={{ flex: 1 }}>
+    <GradBg colors={isDark ? ['#0B0E1A', '#0B0E1A'] : [theme.background, theme.background]} style={{ flex: 1 }}>
       <ScrollView
         contentContainerStyle={{ paddingBottom: 40 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={colors.primary} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={theme.primary} />}
         showsVerticalScrollIndicator={false}>
 
         {/* ── Header ── */}
-        <LinearGradient colors={['#1E0A3C', '#0A0A18']} style={styles.header}>
-          <SafeAreaView>
-            <View style={styles.headerInner}>
-              <View>
-                <Text style={styles.greeting}>{greeting()} 👋</Text>
-                <Text style={styles.subGreeting}>
-                  {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}
-                </Text>
-              </View>
-              <View style={styles.headerAvatar}>
-                <Text style={styles.headerAvatarText}>S</Text>
-              </View>
-            </View>
-          </SafeAreaView>
-        </LinearGradient>
+        <ScreenHeader
+          title={`${greeting()} 👋`}
+          subtitle={dateStr}
+          right={
+            <Avatar name="S" size={38} style={{ marginRight: spacing.sm }} />
+          }
+        />
 
         {/* ── Stats Grid ── */}
-        <View style={styles.statsGrid}>
-          {stats.map(({ key, value }) => {
-            const cfg = STAT_CONFIG[key];
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: spacing.lg, paddingTop: spacing.lg, gap: spacing.md }}>
+          {stats.map(({ key, value, colorKey, icon, label }) => {
+            const color = theme[colorKey];
+            const colorLight = theme[colorKey + 'Light'];
             return (
-              <TouchableOpacity key={key} onPress={() => setSheet(key)} activeOpacity={0.75} style={styles.statWrap}>
-                <GlassCard style={styles.statCard}>
-                  <View style={[styles.statDot, { backgroundColor: cfg.glow }]}>
-                    <Text style={{ color: cfg.color, fontSize: 10, fontWeight: '800' }}>{cfg.icon}</Text>
+              <TouchableOpacity key={key} onPress={() => setSheet(key)} activeOpacity={0.75} style={{ width: '47%' }}>
+                <Card style={{ padding: spacing.lg, alignItems: 'flex-start', overflow: 'hidden' }}>
+                  <View style={{
+                    width: 32, height: 32, borderRadius: 16,
+                    backgroundColor: colorLight,
+                    justifyContent: 'center', alignItems: 'center', marginBottom: spacing.md,
+                  }}>
+                    <Text style={{ fontSize: 16 }}>{icon}</Text>
                   </View>
-                  <Text style={[styles.statValue, { color: cfg.color, textShadowColor: cfg.glow, textShadowRadius: 8 }]}>
+                  <Text style={{ fontSize: 36, fontFamily: fonts.extrabold, color, letterSpacing: -1 }}>
                     {value}
                   </Text>
-                  <Text style={styles.statLabel}>{cfg.label}</Text>
-                  <View style={[styles.statBorder, { backgroundColor: cfg.color }]} />
-                </GlassCard>
+                  <Text style={{ fontSize: fontSizes.xs, color: theme.textSecondary, fontFamily: fonts.semibold, marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    {label}
+                  </Text>
+                  <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 2, backgroundColor: color, opacity: 0.6 }} />
+                </Card>
               </TouchableOpacity>
             );
           })}
         </View>
 
         {/* ── Quick Actions ── */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <View style={styles.actionsRow}>
+        <View style={{ paddingHorizontal: spacing.lg, marginTop: spacing.xl }}>
+          <Text style={{ fontSize: fontSizes.xs, fontFamily: fonts.bold, color: theme.textSecondary, textTransform: 'uppercase', letterSpacing: 1, marginBottom: spacing.md }}>
+            Quick Actions
+          </Text>
+          <View style={{ flexDirection: 'row', gap: spacing.md }}>
             {[
-              { label: 'Deliveries', icon: '🚴', screen: 'Delivery', color: colors.info },
-              { label: 'Customers',  icon: '👥', screen: 'Customers', color: colors.success },
-              { label: 'More',       icon: '⚙️', screen: 'More', color: colors.accent1 },
+              { label: 'Deliveries', icon: '🚴', screen: 'Delivery', colorKey: 'info' },
+              { label: 'Customers',  icon: '👥', screen: 'Customers', colorKey: 'success' },
+              { label: 'More',       icon: '⚙️', screen: 'More', colorKey: 'warning' },
             ].map(a => (
               <TouchableOpacity key={a.label} onPress={() => navigation.navigate(a.screen)} activeOpacity={0.75} style={{ flex: 1 }}>
-                <GlassCard style={styles.actionCard}>
-                  <Text style={styles.actionIcon}>{a.icon}</Text>
-                  <Text style={[styles.actionLabel, { color: a.color }]}>{a.label}</Text>
-                </GlassCard>
+                <Card style={{ padding: spacing.lg, alignItems: 'center' }}>
+                  <Text style={{ fontSize: 26, marginBottom: spacing.sm }}>{a.icon}</Text>
+                  <Text style={{ fontSize: fontSizes.xs, fontFamily: fonts.bold, color: theme[a.colorKey], textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    {a.label}
+                  </Text>
+                </Card>
               </TouchableOpacity>
             ))}
           </View>
@@ -229,22 +249,20 @@ export default function DashboardScreen({ navigation }) {
 
         {/* ── Low Tiffin Alerts ── */}
         {data?.lowTiffinCustomers?.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>⚠️  Low Tiffin Alert</Text>
+          <View style={{ paddingHorizontal: spacing.lg, marginTop: spacing.xl }}>
+            <Text style={{ fontSize: fontSizes.xs, fontFamily: fonts.bold, color: theme.textSecondary, textTransform: 'uppercase', letterSpacing: 1, marginBottom: spacing.md }}>
+              ⚠️  Low Tiffin Alert
+            </Text>
             {data.lowTiffinCustomers.map(c => (
-              <TouchableOpacity key={c.id} onPress={() => navigation.navigate('CustomerDetail', { customerId: c.id })} activeOpacity={0.75}>
-                <GlassCard style={styles.alertRow}>
-                  <View style={[styles.alertDot, { backgroundColor: colors.warningGlow }]}>
-                    <Text style={{ color: colors.warning, fontWeight: '800' }}>{c.name[0]}</Text>
-                  </View>
+              <TouchableOpacity key={c.id} onPress={() => navigation.navigate('CustomerDetail', { customerId: c.id })} activeOpacity={0.75} style={{ marginBottom: spacing.sm }}>
+                <Card style={{ flexDirection: 'row', alignItems: 'center', padding: spacing.md, gap: spacing.md }}>
+                  <Avatar name={c.name} size={38} />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.alertName}>{c.name}</Text>
-                    <Text style={styles.alertSub}>{c.customerCode}</Text>
+                    <Text style={{ color: theme.text, fontSize: fontSizes.body, fontFamily: fonts.semibold }}>{c.name}</Text>
+                    <Text style={{ color: theme.textSecondary, fontSize: fontSizes.sm, fontFamily: fonts.regular, marginTop: 2 }}>{c.customerCode}</Text>
                   </View>
-                  <View style={[styles.pill, { backgroundColor: colors.warningGlow, borderColor: colors.warning }]}>
-                    <Text style={[styles.pillText, { color: colors.warning }]}>{c.tiffinsRemaining} left</Text>
-                  </View>
-                </GlassCard>
+                  <Badge label={`${c.tiffinsRemaining} left`} status="paused" />
+                </Card>
               </TouchableOpacity>
             ))}
           </View>
@@ -252,22 +270,20 @@ export default function DashboardScreen({ navigation }) {
 
         {/* ── Expiring Soon ── */}
         {data?.expiringCustomers?.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>📅  Expiring This Week</Text>
+          <View style={{ paddingHorizontal: spacing.lg, marginTop: spacing.xl }}>
+            <Text style={{ fontSize: fontSizes.xs, fontFamily: fonts.bold, color: theme.textSecondary, textTransform: 'uppercase', letterSpacing: 1, marginBottom: spacing.md }}>
+              📅  Expiring This Week
+            </Text>
             {data.expiringCustomers.map(c => (
-              <TouchableOpacity key={c.id} onPress={() => navigation.navigate('CustomerDetail', { customerId: c.id })} activeOpacity={0.75}>
-                <GlassCard style={styles.alertRow}>
-                  <View style={[styles.alertDot, { backgroundColor: colors.errorGlow }]}>
-                    <Text style={{ color: colors.error, fontWeight: '800' }}>{c.name[0]}</Text>
-                  </View>
+              <TouchableOpacity key={c.id} onPress={() => navigation.navigate('CustomerDetail', { customerId: c.id })} activeOpacity={0.75} style={{ marginBottom: spacing.sm }}>
+                <Card style={{ flexDirection: 'row', alignItems: 'center', padding: spacing.md, gap: spacing.md }}>
+                  <Avatar name={c.name} size={38} />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.alertName}>{c.name}</Text>
-                    <Text style={styles.alertSub}>{c.subscriptionEnd}</Text>
+                    <Text style={{ color: theme.text, fontSize: fontSizes.body, fontFamily: fonts.semibold }}>{c.name}</Text>
+                    <Text style={{ color: theme.textSecondary, fontSize: fontSizes.sm, fontFamily: fonts.regular, marginTop: 2 }}>{c.subscriptionEnd}</Text>
                   </View>
-                  <View style={[styles.pill, { backgroundColor: colors.errorGlow, borderColor: colors.error }]}>
-                    <Text style={[styles.pillText, { color: colors.error }]}>Expiring</Text>
-                  </View>
-                </GlassCard>
+                  <Badge label="Expiring" status="expired" />
+                </Card>
               </TouchableOpacity>
             ))}
           </View>
@@ -276,73 +292,6 @@ export default function DashboardScreen({ navigation }) {
       </ScrollView>
 
       <DetailSheet type={sheet} visible={!!sheet} onClose={() => setSheet(null)} navigation={navigation} />
-    </LinearGradient>
+    </GradBg>
   );
 }
-
-const styles = StyleSheet.create({
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-
-  // Header
-  header: { paddingBottom: spacing.xl },
-  headerInner: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.xl, paddingTop: spacing.lg },
-  greeting: { fontSize: fontSizes.h2, fontWeight: '800', color: colors.textPrimary },
-  subGreeting: { fontSize: fontSizes.small, color: colors.textSecondary, marginTop: 2 },
-  headerAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.primaryGlow, borderWidth: 2, borderColor: colors.primary, justifyContent: 'center', alignItems: 'center' },
-  headerAvatarText: { color: colors.primary, fontWeight: '800', fontSize: fontSizes.body },
-
-  // Glass card
-  glassCard: {
-    backgroundColor: colors.glass,
-    borderRadius: radius.medium,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-    ...shadows.card,
-  },
-
-  // Stats
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', padding: spacing.lg, gap: spacing.md },
-  statWrap: { width: '47%' },
-  statCard: { padding: spacing.lg, alignItems: 'flex-start', overflow: 'hidden' },
-  statDot: { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginBottom: spacing.md },
-  statValue: { fontSize: 36, fontWeight: '900', letterSpacing: -1 },
-  statLabel: { fontSize: fontSizes.tiny, color: colors.textSecondary, fontWeight: '600', marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
-  statBorder: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 2, opacity: 0.6 },
-
-  // Actions
-  section: { paddingHorizontal: spacing.lg, marginBottom: spacing.lg },
-  sectionTitle: { fontSize: fontSizes.small, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 1, marginBottom: spacing.md },
-  actionsRow: { flexDirection: 'row', gap: spacing.md },
-  actionCard: { padding: spacing.lg, alignItems: 'center' },
-  actionIcon: { fontSize: 26, marginBottom: spacing.sm },
-  actionLabel: { fontSize: fontSizes.tiny, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
-
-  // Alert rows
-  alertRow: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, marginBottom: spacing.sm, gap: spacing.md },
-  alertDot: { width: 38, height: 38, borderRadius: 19, justifyContent: 'center', alignItems: 'center' },
-  alertName: { fontSize: fontSizes.body, fontWeight: '700', color: colors.textPrimary },
-  alertSub: { fontSize: fontSizes.tiny, color: colors.textSecondary, marginTop: 2 },
-
-  // Pill badge
-  pill: { paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.pill, borderWidth: 1 },
-  pillText: { fontSize: fontSizes.tiny, fontWeight: '700' },
-
-  // Sheet
-  overlay: { flex: 1, backgroundColor: colors.overlay },
-  sheet: { backgroundColor: '#13132B', borderTopLeftRadius: radius.large, borderTopRightRadius: radius.large, borderTopWidth: 1, borderColor: colors.glassBorder, maxHeight: '75%', minHeight: 200 },
-  sheetHandle: { width: 36, height: 4, backgroundColor: colors.glassBorder, borderRadius: 2, alignSelf: 'center', marginTop: spacing.md },
-  sheetHeaderRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.divider },
-  sheetIconDot: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, justifyContent: 'center', alignItems: 'center', marginRight: spacing.sm },
-  sheetTitle: { flex: 1, fontSize: fontSizes.h3, fontWeight: '800' },
-  sheetClose: { padding: spacing.sm },
-  sheetCloseText: { color: colors.textSecondary, fontSize: fontSizes.body },
-  sheetCenter: { alignItems: 'center', justifyContent: 'center', padding: spacing.huge },
-  emptyText: { color: colors.textSecondary, fontSize: fontSizes.body },
-  sheetRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, gap: spacing.md },
-  sheetAvatar: { width: 42, height: 42, borderRadius: 21, justifyContent: 'center', alignItems: 'center' },
-  sheetAvatarText: { fontWeight: '800', fontSize: fontSizes.body },
-  sheetRowName: { fontSize: fontSizes.body, fontWeight: '700', color: colors.textPrimary },
-  sheetRowSub: { fontSize: fontSizes.tiny, color: colors.textSecondary, marginTop: 2 },
-  sheetRowBadge: { fontSize: fontSizes.body, fontWeight: '800' },
-  sheetDivider: { height: 1, backgroundColor: colors.divider, marginLeft: 70 },
-});

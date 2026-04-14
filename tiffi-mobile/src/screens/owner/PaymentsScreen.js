@@ -1,15 +1,22 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet,
+  View, Text, FlatList, TouchableOpacity,
   Alert, ActivityIndicator, RefreshControl, TextInput, Modal, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { paymentAPI, customerAPI } from '../../services/api';
-import { colors, spacing, radius, fontSizes, shadows } from '../../theme';
+import { useTheme } from '../../context/ThemeContext';
+import { GradBg } from '../../components/Grad';
+import { Card } from '../../components/Card';
+import { Avatar } from '../../components/Avatar';
+import { Badge } from '../../components/Badge';
+import { ScreenHeader } from '../../components/ScreenHeader';
+import { EmptyState } from '../../components/EmptyState';
+import { spacing, fontSizes, fonts, radius, shadows } from '../../theme';
 
 const MODE_ICONS = { cash: '💵', upi: '📱', card: '💳', online: '🌐' };
-const STATUS_COLORS = { paid: colors.success, partial: colors.warning, pending: colors.error };
 
 export default function PaymentsScreen({ navigation }) {
+  const { theme, isDark } = useTheme();
   const [stats, setStats] = useState({ collected: 0, pendingCount: 0 });
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -23,6 +30,7 @@ export default function PaymentsScreen({ navigation }) {
   const now = new Date();
   const month = now.getMonth() + 1;
   const year = now.getFullYear();
+  const monthLabel = now.toLocaleString('default', { month: 'long' });
 
   const load = useCallback(async () => {
     try {
@@ -73,177 +81,242 @@ export default function PaymentsScreen({ navigation }) {
     c.customerCode.toLowerCase().includes(search.toLowerCase())
   );
 
-  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
+  if (loading) return (
+    <GradBg colors={isDark ? ['#0B0E1A', '#0B0E1A'] : [theme.background, theme.background]} style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <ActivityIndicator size="large" color={theme.primary} />
+    </GradBg>
+  );
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.back}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Payments</Text>
-        <Text style={styles.sub}>{now.toLocaleString('default', { month: 'long' })} {year}</Text>
-      </View>
+    <GradBg colors={isDark ? ['#0B0E1A', '#0B0E1A'] : [theme.background, theme.background]} style={{ flex: 1 }}>
+      <ScreenHeader
+        title="Payments"
+        subtitle={`${monthLabel} ${year}`}
+        onBack={() => navigation.goBack()}
+        right={
+          <TouchableOpacity
+            onPress={() => setModalVisible(true)}
+            style={{
+              backgroundColor: theme.primary,
+              paddingHorizontal: spacing.md,
+              paddingVertical: spacing.xs,
+              borderRadius: 20,
+              marginRight: spacing.sm,
+            }}
+            activeOpacity={0.8}>
+            <Text style={{ color: '#FFF', fontSize: fontSizes.sm, fontFamily: fonts.bold }}>+ Record</Text>
+          </TouchableOpacity>
+        }
+      />
 
       <FlatList
         data={payments}
         keyExtractor={(item) => String(item.id)}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={colors.primary} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={theme.primary} />}
         ListHeaderComponent={
-          <View>
+          <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
             {/* Stats row */}
-            <View style={styles.statsRow}>
-              <View style={[styles.statBox, { backgroundColor: colors.primary }]}>
-                <Text style={styles.statLabel}>Collected</Text>
-                <Text style={styles.statAmount}>₹{Number(stats.collected).toLocaleString('en-IN')}</Text>
-              </View>
-              <View style={[styles.statBox, { backgroundColor: colors.error }]}>
-                <Text style={styles.statLabel}>Pending</Text>
-                <Text style={styles.statAmount}>{stats.pendingCount} dues</Text>
-              </View>
+            <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.xl }}>
+              <Card style={{ flex: 1, padding: spacing.lg, alignItems: 'center', overflow: 'hidden' }}>
+                <Text style={{ fontSize: fontSizes.xs, color: theme.textSecondary, fontFamily: fonts.semibold, textTransform: 'uppercase', letterSpacing: 0.5 }}>Collected</Text>
+                <Text style={{ fontSize: fontSizes.h2, fontFamily: fonts.extrabold, color: theme.success, marginTop: 4 }}>
+                  ₹{Number(stats.collected).toLocaleString('en-IN')}
+                </Text>
+                <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 2, backgroundColor: theme.success, opacity: 0.6 }} />
+              </Card>
+              <Card style={{ flex: 1, padding: spacing.lg, alignItems: 'center', overflow: 'hidden' }}>
+                <Text style={{ fontSize: fontSizes.xs, color: theme.textSecondary, fontFamily: fonts.semibold, textTransform: 'uppercase', letterSpacing: 0.5 }}>Pending</Text>
+                <Text style={{ fontSize: fontSizes.h2, fontFamily: fonts.extrabold, color: theme.error, marginTop: 4 }}>
+                  {stats.pendingCount} dues
+                </Text>
+                <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 2, backgroundColor: theme.error, opacity: 0.6 }} />
+              </Card>
             </View>
-            <Text style={styles.sectionTitle}>Recent Transactions</Text>
+            <Text style={{ fontSize: fontSizes.xs, fontFamily: fonts.bold, color: theme.textSecondary, textTransform: 'uppercase', letterSpacing: 1, marginBottom: spacing.md }}>
+              Recent Transactions
+            </Text>
           </View>
         }
-        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 100 }}
+        contentContainerStyle={{ paddingBottom: 100 }}
         renderItem={({ item }) => (
-          <View style={styles.card}>
-            <View style={styles.cardIcon}>
+          <Card style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: spacing.lg, marginBottom: spacing.sm, padding: spacing.md, gap: spacing.md }}>
+            <View style={{
+              width: 44, height: 44, borderRadius: 22,
+              backgroundColor: theme.surface,
+              borderWidth: 1, borderColor: theme.border,
+              justifyContent: 'center', alignItems: 'center',
+            }}>
               <Text style={{ fontSize: 20 }}>{MODE_ICONS[item.paymentMode] || '💰'}</Text>
             </View>
-            <View style={styles.cardInfo}>
-              <Text style={styles.custName}>{item.customerName || `Customer #${item.customerId}`}</Text>
-              <Text style={styles.cardSub}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: theme.text, fontSize: fontSizes.body, fontFamily: fonts.semibold }}>
+                {item.customerName || `Customer #${item.customerId}`}
+              </Text>
+              <Text style={{ color: theme.textSecondary, fontSize: fontSizes.sm, fontFamily: fonts.regular, marginTop: 2 }}>
                 {item.paymentMode?.toUpperCase()} • {item.paymentDate || 'Pending'}
               </Text>
-              {item.notes ? <Text style={styles.notes}>{item.notes}</Text> : null}
+              {item.notes ? (
+                <Text style={{ color: theme.textMuted, fontSize: fontSizes.sm, fontFamily: fonts.regular, marginTop: 2, fontStyle: 'italic' }}>
+                  {item.notes}
+                </Text>
+              ) : null}
             </View>
-            <View style={styles.cardRight}>
-              <Text style={styles.amount}>₹{Number(item.amount).toLocaleString('en-IN')}</Text>
-              <View style={[styles.badge, { backgroundColor: STATUS_COLORS[item.status] || colors.border }]}>
-                <Text style={styles.badgeText}>{item.status}</Text>
-              </View>
+            <View style={{ alignItems: 'flex-end', gap: spacing.xs }}>
+              <Text style={{ color: theme.text, fontSize: fontSizes.body, fontFamily: fonts.extrabold }}>
+                ₹{Number(item.amount).toLocaleString('en-IN')}
+              </Text>
+              <Badge status={item.status} />
             </View>
-          </View>
+          </Card>
         )}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyText}>No transactions this month</Text>
-          </View>
+          <EmptyState emoji="💳" title="No transactions" subtitle="No transactions recorded this month" />
         }
       />
 
-      <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
-        <Text style={styles.fabText}>+ Record Cash</Text>
-      </TouchableOpacity>
-
       {/* Record Cash Modal */}
       <Modal visible={modalVisible} animationType="slide" transparent>
-        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>Record Cash Payment</Text>
+        <KeyboardAvoidingView style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: theme.overlay }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={{
+            backgroundColor: theme.sheetBg,
+            borderTopLeftRadius: radius.xl,
+            borderTopRightRadius: radius.xl,
+            padding: spacing.xxl,
+            paddingBottom: 40,
+            borderTopWidth: 1,
+            borderColor: theme.border,
+          }}>
+            <Text style={{ fontSize: fontSizes.h3, fontFamily: fonts.bold, color: theme.text, marginBottom: spacing.lg }}>
+              Record Cash Payment
+            </Text>
 
-            <Text style={styles.fieldLabel}>Search Customer *</Text>
+            <Text style={{ fontSize: fontSizes.sm, fontFamily: fonts.semibold, color: theme.textSecondary, marginBottom: spacing.xs }}>
+              Search Customer *
+            </Text>
             <TextInput
-              style={styles.input}
+              style={{
+                backgroundColor: theme.inputBg,
+                borderRadius: radius.md,
+                padding: spacing.md,
+                fontSize: fontSizes.body,
+                fontFamily: fonts.regular,
+                color: theme.text,
+                borderWidth: 1,
+                borderColor: theme.inputBorder,
+              }}
               placeholder="Name or customer code..."
-              placeholderTextColor={colors.textSecondary}
+              placeholderTextColor={theme.textMuted}
               value={search}
               onChangeText={setSearch}
             />
             {search.length > 0 && !form.customerId && (
-              <View style={styles.dropdown}>
+              <View style={{
+                backgroundColor: theme.sheetBg,
+                borderRadius: radius.md,
+                borderWidth: 1,
+                borderColor: theme.border,
+                marginTop: 2,
+                zIndex: 10,
+              }}>
                 {filteredCustomers.slice(0, 5).map(c => (
                   <TouchableOpacity
                     key={c.id}
-                    style={styles.dropItem}
+                    style={{
+                      padding: spacing.md,
+                      borderBottomWidth: 1,
+                      borderBottomColor: theme.border,
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                    }}
                     onPress={() => {
                       setForm(f => ({ ...f, customerId: String(c.id) }));
                       setSearch(`${c.name} (${c.customerCode})`);
                     }}>
-                    <Text style={styles.dropName}>{c.name}</Text>
-                    <Text style={styles.dropCode}>{c.customerCode}</Text>
+                    <Text style={{ fontSize: fontSizes.body, color: theme.text, fontFamily: fonts.semibold }}>{c.name}</Text>
+                    <Text style={{ fontSize: fontSizes.sm, color: theme.textSecondary, fontFamily: fonts.regular }}>{c.customerCode}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
             )}
 
-            <Text style={styles.fieldLabel}>Amount (₹) *</Text>
+            <Text style={{ fontSize: fontSizes.sm, fontFamily: fonts.semibold, color: theme.textSecondary, marginBottom: spacing.xs, marginTop: spacing.md }}>
+              Amount (₹) *
+            </Text>
             <TextInput
-              style={styles.input}
+              style={{
+                backgroundColor: theme.inputBg,
+                borderRadius: radius.md,
+                padding: spacing.md,
+                fontSize: fontSizes.body,
+                fontFamily: fonts.regular,
+                color: theme.text,
+                borderWidth: 1,
+                borderColor: theme.inputBorder,
+              }}
               placeholder="e.g. 1500"
-              placeholderTextColor={colors.textSecondary}
+              placeholderTextColor={theme.textMuted}
               value={form.amount}
               onChangeText={v => setForm(f => ({ ...f, amount: v }))}
               keyboardType="number-pad"
             />
 
-            <Text style={styles.fieldLabel}>Notes</Text>
+            <Text style={{ fontSize: fontSizes.sm, fontFamily: fonts.semibold, color: theme.textSecondary, marginBottom: spacing.xs, marginTop: spacing.md }}>
+              Notes
+            </Text>
             <TextInput
-              style={styles.input}
+              style={{
+                backgroundColor: theme.inputBg,
+                borderRadius: radius.md,
+                padding: spacing.md,
+                fontSize: fontSizes.body,
+                fontFamily: fonts.regular,
+                color: theme.text,
+                borderWidth: 1,
+                borderColor: theme.inputBorder,
+              }}
               placeholder="Optional note..."
-              placeholderTextColor={colors.textSecondary}
+              placeholderTextColor={theme.textMuted}
               value={form.notes}
               onChangeText={v => setForm(f => ({ ...f, notes: v }))}
             />
 
-            <View style={styles.modalBtns}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => {
-                setModalVisible(false);
-                setForm({ customerId: '', amount: '', notes: '' });
-                setSearch('');
-              }}>
-                <Text style={styles.cancelBtnText}>Cancel</Text>
+            <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.xxl }}>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  borderWidth: 1,
+                  borderColor: theme.border,
+                  borderRadius: radius.md,
+                  padding: spacing.lg,
+                  alignItems: 'center',
+                }}
+                onPress={() => {
+                  setModalVisible(false);
+                  setForm({ customerId: '', amount: '', notes: '' });
+                  setSearch('');
+                }}>
+                <Text style={{ color: theme.textSecondary, fontFamily: fonts.semibold, fontSize: fontSizes.body }}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.saveBtn, saving && { opacity: 0.5 }]} onPress={recordCash} disabled={saving}>
-                {saving ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.saveBtnText}>Record</Text>}
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  backgroundColor: theme.primary,
+                  borderRadius: radius.md,
+                  padding: spacing.lg,
+                  alignItems: 'center',
+                  opacity: saving ? 0.5 : 1,
+                }}
+                onPress={recordCash}
+                disabled={saving}>
+                {saving
+                  ? <ActivityIndicator color="#FFF" />
+                  : <Text style={{ color: '#FFF', fontFamily: fonts.bold, fontSize: fontSizes.body }}>Record</Text>
+                }
               </TouchableOpacity>
             </View>
           </View>
         </KeyboardAvoidingView>
       </Modal>
-    </View>
+    </GradBg>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { backgroundColor: colors.primary, padding: spacing.xxl, paddingTop: 60 },
-  back: { color: colors.surface, opacity: 0.8, marginBottom: spacing.sm },
-  title: { fontSize: fontSizes.h2, fontWeight: '700', color: colors.surface },
-  sub: { fontSize: fontSizes.small, color: colors.surface, opacity: 0.8, marginTop: 2 },
-  statsRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg },
-  statBox: { flex: 1, borderRadius: radius.large, padding: spacing.lg, alignItems: 'center' },
-  statLabel: { fontSize: fontSizes.small, color: colors.surface, opacity: 0.85 },
-  statAmount: { fontSize: fontSizes.h3, fontWeight: '800', color: colors.surface, marginTop: 4 },
-  sectionTitle: { fontSize: fontSizes.small, fontWeight: '700', color: colors.textSecondary, marginBottom: spacing.sm, textTransform: 'uppercase', letterSpacing: 0.5 },
-  card: { backgroundColor: colors.surface, borderRadius: radius.medium, padding: spacing.lg, marginBottom: spacing.sm, flexDirection: 'row', alignItems: 'center', ...shadows.card },
-  cardIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center', marginRight: spacing.md },
-  cardInfo: { flex: 1 },
-  custName: { fontSize: fontSizes.body, fontWeight: '700', color: colors.textPrimary },
-  cardSub: { fontSize: fontSizes.small, color: colors.textSecondary, marginTop: 2 },
-  notes: { fontSize: fontSizes.small, color: colors.textSecondary, marginTop: 2, fontStyle: 'italic' },
-  cardRight: { alignItems: 'flex-end', gap: 4 },
-  amount: { fontSize: fontSizes.body, fontWeight: '800', color: colors.textPrimary },
-  badge: { paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: radius.pill },
-  badgeText: { fontSize: 10, fontWeight: '700', color: colors.surface, textTransform: 'uppercase' },
-  empty: { padding: spacing.huge, alignItems: 'center' },
-  emptyText: { color: colors.textSecondary, fontSize: fontSizes.body },
-  fab: { position: 'absolute', bottom: spacing.xxl, right: spacing.xxl, backgroundColor: colors.primary, borderRadius: radius.pill, paddingVertical: spacing.md, paddingHorizontal: spacing.xxl, ...shadows.card },
-  fabText: { color: colors.surface, fontWeight: '700', fontSize: fontSizes.body },
-  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
-  modalSheet: { backgroundColor: colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing.xxl, paddingBottom: 40 },
-  modalTitle: { fontSize: fontSizes.h3, fontWeight: '700', color: colors.textPrimary, marginBottom: spacing.lg },
-  fieldLabel: { fontSize: fontSizes.small, fontWeight: '600', color: colors.textSecondary, marginBottom: spacing.xs, marginTop: spacing.md },
-  input: { backgroundColor: colors.background, borderRadius: radius.medium, padding: spacing.md, fontSize: fontSizes.body, color: colors.textPrimary, borderWidth: 1, borderColor: colors.border },
-  dropdown: { backgroundColor: colors.surface, borderRadius: radius.medium, borderWidth: 1, borderColor: colors.border, marginTop: 2, zIndex: 10 },
-  dropItem: { padding: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: 'row', justifyContent: 'space-between' },
-  dropName: { fontSize: fontSizes.body, color: colors.textPrimary, fontWeight: '600' },
-  dropCode: { fontSize: fontSizes.small, color: colors.textSecondary },
-  modalBtns: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.xxl },
-  cancelBtn: { flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: radius.medium, padding: spacing.lg, alignItems: 'center' },
-  cancelBtnText: { color: colors.textSecondary, fontWeight: '600' },
-  saveBtn: { flex: 1, backgroundColor: colors.primary, borderRadius: radius.medium, padding: spacing.lg, alignItems: 'center' },
-  saveBtnText: { color: colors.surface, fontWeight: '700' },
-});

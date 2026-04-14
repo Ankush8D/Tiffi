@@ -2,11 +2,11 @@ import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, View, Text } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 
 import useAuthStore from '../store/authStore';
-import { colors } from '../theme';
+import { useTheme } from '../context/ThemeContext';
 
 // Auth Screens
 import PhoneScreen from '../screens/auth/PhoneScreen';
@@ -33,46 +33,127 @@ import CustomerProfileScreen from '../screens/customer/CustomerProfileScreen';
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
+function TabIcon({ emoji, focused, color }) {
+  return (
+    <Text style={{ fontSize: focused ? 22 : 20, opacity: focused ? 1 : 0.55 }}>{emoji}</Text>
+  );
+}
+
 function OwnerTabs() {
+  const { theme } = useTheme();
   return (
     <Tab.Navigator
       screenOptions={{
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textSecondary,
-        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
+        tabBarActiveTintColor: theme.primary,
+        tabBarInactiveTintColor: theme.textSecondary,
+        tabBarStyle: {
+          backgroundColor: theme.tabBar,
+          borderTopColor: theme.tabBorder,
+          borderTopWidth: 1,
+          paddingBottom: 4,
+          paddingTop: 4,
+          height: 58,
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontFamily: 'Poppins_500Medium',
+          marginTop: 2,
+        },
         headerShown: false,
       }}>
-      <Tab.Screen name="Dashboard" component={DashboardScreen}
-        options={{ tabBarLabel: 'Home' }} />
-      <Tab.Screen name="Delivery" component={DeliveryScreen}
-        options={{ tabBarLabel: 'Deliveries' }} />
-      <Tab.Screen name="Customers" component={CustomersScreen}
-        options={{ tabBarLabel: 'Customers' }} />
-      <Tab.Screen name="More" component={MoreScreen}
-        options={{ tabBarLabel: 'More' }} />
+      <Tab.Screen
+        name="Dashboard"
+        component={DashboardScreen}
+        options={{
+          tabBarLabel: 'Home',
+          tabBarIcon: ({ focused, color }) => <TabIcon emoji="🏠" focused={focused} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="Delivery"
+        component={DeliveryScreen}
+        options={{
+          tabBarLabel: 'Deliveries',
+          tabBarIcon: ({ focused, color }) => <TabIcon emoji="🚴" focused={focused} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="Customers"
+        component={CustomersScreen}
+        options={{
+          tabBarLabel: 'Customers',
+          tabBarIcon: ({ focused, color }) => <TabIcon emoji="👥" focused={focused} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="More"
+        component={MoreScreen}
+        options={{
+          tabBarLabel: 'More',
+          tabBarIcon: ({ focused, color }) => <TabIcon emoji="⚙️" focused={focused} color={color} />,
+        }}
+      />
     </Tab.Navigator>
   );
 }
 
 function CustomerTabs() {
+  const { theme } = useTheme();
   return (
     <Tab.Navigator
       screenOptions={{
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textSecondary,
-        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
+        tabBarActiveTintColor: theme.primary,
+        tabBarInactiveTintColor: theme.textSecondary,
+        tabBarStyle: {
+          backgroundColor: theme.tabBar,
+          borderTopColor: theme.tabBorder,
+          borderTopWidth: 1,
+          paddingBottom: 4,
+          paddingTop: 4,
+          height: 58,
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontFamily: 'Poppins_500Medium',
+          marginTop: 2,
+        },
         headerShown: false,
       }}>
-      <Tab.Screen name="Home" component={CustomerHomeScreen} />
-      <Tab.Screen name="Tracker" component={TrackerScreen} />
-      <Tab.Screen name="Menu" component={MenuScreen} />
-      <Tab.Screen name="Profile" component={CustomerProfileScreen} />
+      <Tab.Screen
+        name="Home"
+        component={CustomerHomeScreen}
+        options={{
+          tabBarIcon: ({ focused, color }) => <TabIcon emoji="🏠" focused={focused} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="Tracker"
+        component={TrackerScreen}
+        options={{
+          tabBarIcon: ({ focused, color }) => <TabIcon emoji="📅" focused={focused} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="Menu"
+        component={MenuScreen}
+        options={{
+          tabBarIcon: ({ focused, color }) => <TabIcon emoji="🍱" focused={focused} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={CustomerProfileScreen}
+        options={{
+          tabBarIcon: ({ focused, color }) => <TabIcon emoji="👤" focused={focused} color={color} />,
+        }}
+      />
     </Tab.Navigator>
   );
 }
 
 export default function RootNavigator() {
   const { user, role, isLoading, setAuth, setLoading } = useAuthStore();
+  const { theme } = useTheme();
 
   useEffect(() => {
     // Restore session on app launch
@@ -98,8 +179,8 @@ export default function RootNavigator() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background }}>
+        <ActivityIndicator size="large" color={theme.primary} />
       </View>
     );
   }

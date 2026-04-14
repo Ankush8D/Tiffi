@@ -1,12 +1,23 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, RefreshControl, ActivityIndicator } from 'react-native';
+import {
+  View, Text, FlatList, TouchableOpacity, Alert,
+  RefreshControl, ActivityIndicator, ScrollView,
+} from 'react-native';
 import { deliveryAPI } from '../../services/api';
 import useDeliveryStore from '../../store/deliveryStore';
-import { colors, spacing, radius, fontSizes, shadows } from '../../theme';
+import { useTheme } from '../../context/ThemeContext';
+import { GradBg } from '../../components/Grad';
+import { Card } from '../../components/Card';
+import { Avatar } from '../../components/Avatar';
+import { Badge } from '../../components/Badge';
+import { ScreenHeader } from '../../components/ScreenHeader';
+import { EmptyState } from '../../components/EmptyState';
+import { spacing, fontSizes, fonts, radius } from '../../theme';
 
 const FILTERS = ['All', 'Pending', 'Delivered', 'Leave'];
 
 export default function DeliveryScreen() {
+  const { theme, isDark } = useTheme();
   const { todayList, setTodayList, updateDeliveryStatus, isOffline } = useDeliveryStore();
   const [activeFilter, setActiveFilter] = useState('All');
   const [loading, setLoading] = useState(true);
@@ -67,97 +78,121 @@ export default function DeliveryScreen() {
     Leave: todayList.filter((i) => i.status === 'leave').length,
   };
 
-  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
+  const dateStr = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' });
+
+  if (loading) return (
+    <GradBg colors={isDark ? ['#0B0E1A', '#0B0E1A'] : [theme.background, theme.background]} style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <ActivityIndicator size="large" color={theme.primary} />
+    </GradBg>
+  );
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Today's Deliveries</Text>
-        {isOffline && <Text style={styles.offlineBanner}>Offline Mode</Text>}
-      </View>
+    <GradBg colors={isDark ? ['#0B0E1A', '#0B0E1A'] : [theme.background, theme.background]} style={{ flex: 1 }}>
+      <ScreenHeader title="Today's Deliveries" subtitle={dateStr} />
 
-      {/* Filter Tabs */}
-      <View style={styles.filters}>
-        {FILTERS.map((f) => (
-          <TouchableOpacity key={f} style={[styles.filterBtn, activeFilter === f && styles.filterActive]} onPress={() => setActiveFilter(f)}>
-            <Text style={[styles.filterText, activeFilter === f && styles.filterTextActive]}>
-              {f} {counts[f] > 0 && `(${counts[f]})`}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      {isOffline && (
+        <View style={{ backgroundColor: theme.warningLight, borderLeftWidth: 3, borderLeftColor: theme.warning, margin: spacing.md, borderRadius: radius.sm, padding: spacing.md }}>
+          <Text style={{ color: theme.warning, fontSize: fontSizes.sm, fontFamily: fonts.semibold }}>Offline Mode — changes will sync when connected</Text>
+        </View>
+      )}
+
+      {/* Filter Pills */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ paddingHorizontal: spacing.lg, paddingVertical: spacing.sm }} contentContainerStyle={{ gap: spacing.sm }}>
+        {FILTERS.map((f) => {
+          const isActive = activeFilter === f;
+          return (
+            <TouchableOpacity
+              key={f}
+              onPress={() => setActiveFilter(f)}
+              style={{
+                paddingHorizontal: spacing.lg,
+                paddingVertical: spacing.xs,
+                borderRadius: radius.pill,
+                backgroundColor: isActive ? theme.primary : theme.surface,
+                borderWidth: 1,
+                borderColor: isActive ? theme.primary : theme.border,
+              }}
+              activeOpacity={0.8}>
+              <Text style={{
+                fontSize: fontSizes.sm,
+                fontFamily: isActive ? fonts.bold : fonts.medium,
+                color: isActive ? '#FFF' : theme.textSecondary,
+              }}>
+                {f}{counts[f] > 0 ? ` (${counts[f]})` : ''}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
 
       <FlatList
         data={filtered}
         keyExtractor={(item) => `${item.customerId}-${item.mealType}`}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={colors.primary} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={theme.primary} />}
+        contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 100, paddingTop: spacing.sm }}
         renderItem={({ item }) => (
-          <View style={styles.card}>
-            {item.hasApprovedLeave && <View style={styles.leaveBanner}><Text style={styles.leaveBannerText}>On Leave Today</Text></View>}
-            <View style={styles.cardContent}>
-              <View style={styles.customerInfo}>
-                <Text style={styles.code}>{item.customerCode}</Text>
-                <Text style={styles.name}>{item.name}</Text>
-                <Text style={styles.zone}>{item.zone} • {item.mealType}</Text>
+          <Card style={{ marginBottom: spacing.sm, overflow: 'hidden' }}>
+            {item.hasApprovedLeave && (
+              <View style={{ backgroundColor: theme.warningLight, paddingHorizontal: spacing.md, paddingVertical: spacing.xs }}>
+                <Text style={{ color: theme.warning, fontSize: fontSizes.xs, fontFamily: fonts.semibold }}>On Leave Today</Text>
               </View>
-              <StatusBadge status={item.status} />
+            )}
+            <View style={{ flexDirection: 'row', alignItems: 'center', padding: spacing.md, gap: spacing.md }}>
+              <Avatar name={item.name} size={44} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: theme.textSecondary, fontSize: fontSizes.xs, fontFamily: fonts.semibold, textTransform: 'uppercase', letterSpacing: 0.4 }}>
+                  {item.customerCode}
+                </Text>
+                <Text style={{ color: theme.text, fontSize: fontSizes.body, fontFamily: fonts.semibold, marginVertical: 2 }}>
+                  {item.name}
+                </Text>
+                <Text style={{ color: theme.textSecondary, fontSize: fontSizes.sm, fontFamily: fonts.regular }}>
+                  {item.zone} • {item.mealType}
+                </Text>
+              </View>
+              <Badge status={item.status} />
             </View>
             {!item.hasApprovedLeave && item.status === 'pending' && (
-              <View style={styles.actions}>
-                <TouchableOpacity style={styles.deliverBtn} onPress={() => markDelivery(item, 'delivered')}>
-                  <Text style={styles.deliverBtnText}>Delivered</Text>
+              <View style={{ flexDirection: 'row', borderTopWidth: 1, borderTopColor: theme.border }}>
+                <TouchableOpacity
+                  style={{ flex: 1, padding: spacing.md, alignItems: 'center', backgroundColor: theme.successLight }}
+                  onPress={() => markDelivery(item, 'delivered')}
+                  activeOpacity={0.8}>
+                  <Text style={{ color: theme.success, fontFamily: fonts.bold, fontSize: fontSizes.sm }}>✓ Delivered</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.missedBtn} onPress={() => markDelivery(item, 'missed')}>
-                  <Text style={styles.missedBtnText}>Missed</Text>
+                <View style={{ width: 1, backgroundColor: theme.border }} />
+                <TouchableOpacity
+                  style={{ flex: 1, padding: spacing.md, alignItems: 'center', backgroundColor: theme.errorLight }}
+                  onPress={() => markDelivery(item, 'missed')}
+                  activeOpacity={0.8}>
+                  <Text style={{ color: theme.error, fontFamily: fonts.bold, fontSize: fontSizes.sm }}>✕ Missed</Text>
                 </TouchableOpacity>
               </View>
             )}
-          </View>
+          </Card>
         )}
+        ListEmptyComponent={
+          <EmptyState emoji="🚴" title="No deliveries" subtitle="No deliveries match the current filter" />
+        }
         ListFooterComponent={
           counts.Pending > 0 ? (
-            <TouchableOpacity style={styles.markAllBtn} onPress={markAllDelivered}>
-              <Text style={styles.markAllText}>Mark All Delivered ({counts.Pending})</Text>
+            <TouchableOpacity
+              style={{
+                marginTop: spacing.md,
+                backgroundColor: theme.primary,
+                borderRadius: radius.md,
+                padding: spacing.lg,
+                alignItems: 'center',
+              }}
+              onPress={markAllDelivered}
+              activeOpacity={0.8}>
+              <Text style={{ color: '#FFF', fontFamily: fonts.bold, fontSize: fontSizes.body }}>
+                Mark All Delivered ({counts.Pending})
+              </Text>
             </TouchableOpacity>
           ) : null
         }
       />
-    </View>
+    </GradBg>
   );
 }
-
-function StatusBadge({ status }) {
-  const map = { delivered: [colors.success, 'Delivered'], missed: [colors.error, 'Missed'], leave: [colors.warning, 'Leave'], pending: [colors.border, 'Pending'] };
-  const [color, label] = map[status] || [colors.border, status];
-  return <View style={[styles.badge, { backgroundColor: color }]}><Text style={styles.badgeText}>{label}</Text></View>;
-}
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
-  header: { backgroundColor: colors.primary, padding: spacing.xxl, paddingBottom: spacing.lg },
-  title: { fontSize: fontSizes.h2, fontWeight: '700', color: colors.surface },
-  offlineBanner: { backgroundColor: colors.warning, color: colors.textPrimary, padding: spacing.xs, borderRadius: radius.small, marginTop: spacing.sm, textAlign: 'center', fontWeight: '700' },
-  filters: { flexDirection: 'row', backgroundColor: colors.surface, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, gap: spacing.sm },
-  filterBtn: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border },
-  filterActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  filterText: { fontSize: fontSizes.small, color: colors.textSecondary },
-  filterTextActive: { color: colors.surface, fontWeight: '700' },
-  card: { margin: spacing.md, marginBottom: 0, backgroundColor: colors.surface, borderRadius: radius.medium, ...shadows.card, overflow: 'hidden' },
-  leaveBanner: { backgroundColor: colors.leave, padding: spacing.xs, paddingHorizontal: spacing.md },
-  leaveBannerText: { fontSize: fontSizes.small, fontWeight: '600', color: '#92400E' },
-  cardContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing.lg },
-  customerInfo: { flex: 1 },
-  code: { fontSize: fontSizes.small, color: colors.textSecondary, fontWeight: '600' },
-  name: { fontSize: fontSizes.body, fontWeight: '700', color: colors.textPrimary, marginVertical: 2 },
-  zone: { fontSize: fontSizes.small, color: colors.textSecondary },
-  badge: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: radius.pill },
-  badgeText: { fontSize: fontSizes.small, fontWeight: '700', color: colors.surface },
-  actions: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: colors.border },
-  deliverBtn: { flex: 1, padding: spacing.md, alignItems: 'center', backgroundColor: '#F0FDF4' },
-  deliverBtnText: { color: colors.success, fontWeight: '700', fontSize: fontSizes.small },
-  missedBtn: { flex: 1, padding: spacing.md, alignItems: 'center', backgroundColor: '#FEF2F2', borderLeftWidth: 1, borderLeftColor: colors.border },
-  missedBtnText: { color: colors.error, fontWeight: '700', fontSize: fontSizes.small },
-  markAllBtn: { margin: spacing.lg, backgroundColor: colors.primary, borderRadius: radius.medium, padding: spacing.lg, alignItems: 'center' },
-  markAllText: { color: colors.surface, fontWeight: '700', fontSize: fontSizes.body },
-});

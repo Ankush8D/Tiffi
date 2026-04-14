@@ -1,9 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput, ActivityIndicator, RefreshControl } from 'react-native';
+import {
+  View, Text, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl,
+} from 'react-native';
 import { customerAPI } from '../../services/api';
-import { colors, spacing, radius, fontSizes, shadows } from '../../theme';
+import { useTheme } from '../../context/ThemeContext';
+import { GradBg } from '../../components/Grad';
+import { Card } from '../../components/Card';
+import { Avatar } from '../../components/Avatar';
+import { Badge } from '../../components/Badge';
+import { ScreenHeader } from '../../components/ScreenHeader';
+import { SearchBar } from '../../components/SearchBar';
+import { EmptyState } from '../../components/EmptyState';
+import { spacing, fontSizes, fonts } from '../../theme';
 
 export default function CustomersScreen({ navigation }) {
+  const { theme, isDark } = useTheme();
   const [customers, setCustomers] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -26,76 +37,71 @@ export default function CustomersScreen({ navigation }) {
 
   useEffect(() => { load(true); }, [search]);
 
-  const getStatusColor = (status) => ({ active: colors.success, paused: colors.warning, expired: colors.error }[status] || colors.border);
-
-  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
+  if (loading) return (
+    <GradBg colors={isDark ? ['#0B0E1A', '#0B0E1A'] : [theme.background, theme.background]} style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <ActivityIndicator size="large" color={theme.primary} />
+    </GradBg>
+  );
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Customers</Text>
-        <TextInput
-          style={styles.search}
-          placeholder="Search by name or TF-001..."
-          placeholderTextColor={colors.textSecondary}
-          value={search}
-          onChangeText={setSearch}
-        />
-      </View>
+    <GradBg colors={isDark ? ['#0B0E1A', '#0B0E1A'] : [theme.background, theme.background]} style={{ flex: 1 }}>
+      <ScreenHeader
+        title="Customers"
+        right={
+          <TouchableOpacity
+            onPress={() => navigation.navigate('AddCustomer')}
+            style={{
+              backgroundColor: theme.primary,
+              paddingHorizontal: spacing.md,
+              paddingVertical: spacing.xs,
+              borderRadius: 20,
+              marginRight: spacing.sm,
+            }}
+            activeOpacity={0.8}>
+            <Text style={{ color: '#FFF', fontSize: fontSizes.sm, fontFamily: fonts.bold }}>+ Add</Text>
+          </TouchableOpacity>
+        }
+      />
 
       <FlatList
         data={customers}
         keyExtractor={(item) => String(item.id)}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(true); }} tintColor={colors.primary} />}
-        contentContainerStyle={{ paddingBottom: 100 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(true); }} tintColor={theme.primary} />}
+        contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 100, paddingTop: spacing.sm }}
+        ListHeaderComponent={
+          <SearchBar
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search by name or TF-001..."
+            style={{ marginHorizontal: 0, marginBottom: spacing.md }}
+          />
+        }
         renderItem={({ item }) => (
-          <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('CustomerDetail', { customerId: item.id })}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{item.name[0]}</Text>
+          <Card
+            onPress={() => navigation.navigate('CustomerDetail', { customerId: item.id })}
+            style={{ flexDirection: 'row', alignItems: 'center', padding: spacing.md, marginBottom: spacing.sm, gap: spacing.md }}>
+            <Avatar name={item.name} size={44} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: theme.text, fontSize: fontSizes.body, fontFamily: fonts.semibold }}>{item.name}</Text>
+              <Text style={{ color: theme.textSecondary, fontSize: fontSizes.sm, fontFamily: fonts.regular, marginTop: 2 }}>
+                {item.customerCode} • {item.phone}
+              </Text>
+              <Text style={{ color: theme.textMuted, fontSize: fontSizes.sm, fontFamily: fonts.regular, marginTop: 1 }}>
+                {item.zone || 'No zone'}
+              </Text>
             </View>
-            <View style={styles.info}>
-              <Text style={styles.name}>{item.name}</Text>
-              <Text style={styles.code}>{item.customerCode} • {item.phone}</Text>
-              <Text style={styles.zone}>{item.zone || 'No zone'}</Text>
+            <View style={{ alignItems: 'flex-end', gap: spacing.xs }}>
+              <Badge status={item.status} />
+              <Text style={{ color: theme.textSecondary, fontSize: fontSizes.sm, fontFamily: fonts.semibold, marginTop: 4 }}>
+                {item.tiffinsRemaining} left
+              </Text>
             </View>
-            <View style={styles.right}>
-              <View style={[styles.statusDot, { backgroundColor: getStatusColor(item.status) }]} />
-              <Text style={styles.tiffins}>{item.tiffinsRemaining} left</Text>
-            </View>
-          </TouchableOpacity>
+          </Card>
         )}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyText}>No customers found</Text>
-          </View>
+          <EmptyState emoji="👥" title="No customers found" subtitle="Add your first customer using the + Add button above" />
         }
       />
-
-      <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('AddCustomer')}>
-        <Text style={styles.fabText}>+ Add</Text>
-      </TouchableOpacity>
-    </View>
+    </GradBg>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
-  header: { backgroundColor: colors.primary, padding: spacing.xxl, paddingBottom: spacing.lg },
-  title: { fontSize: fontSizes.h2, fontWeight: '700', color: colors.surface, marginBottom: spacing.md },
-  search: { backgroundColor: colors.surface, borderRadius: radius.medium, padding: spacing.md, fontSize: fontSizes.body, color: colors.textPrimary },
-  card: { flexDirection: 'row', alignItems: 'center', margin: spacing.md, marginBottom: 0, backgroundColor: colors.surface, borderRadius: radius.medium, padding: spacing.lg, ...shadows.card },
-  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center', marginRight: spacing.md },
-  avatarText: { color: colors.surface, fontWeight: '700', fontSize: fontSizes.body },
-  info: { flex: 1 },
-  name: { fontSize: fontSizes.body, fontWeight: '700', color: colors.textPrimary },
-  code: { fontSize: fontSizes.small, color: colors.textSecondary, marginVertical: 2 },
-  zone: { fontSize: fontSizes.small, color: colors.textSecondary },
-  right: { alignItems: 'center', gap: spacing.xs },
-  statusDot: { width: 10, height: 10, borderRadius: 5 },
-  tiffins: { fontSize: fontSizes.small, fontWeight: '700', color: colors.textSecondary },
-  empty: { padding: spacing.huge, alignItems: 'center' },
-  emptyText: { color: colors.textSecondary, fontSize: fontSizes.body },
-  fab: { position: 'absolute', bottom: spacing.xxl, right: spacing.xxl, backgroundColor: colors.primary, borderRadius: radius.pill, paddingVertical: spacing.md, paddingHorizontal: spacing.xxl },
-  fabText: { color: colors.surface, fontWeight: '700', fontSize: fontSizes.body },
-});
