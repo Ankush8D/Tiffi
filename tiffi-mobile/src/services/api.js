@@ -1,12 +1,12 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
-const BASE_URL = 'https://mitigatory-alisha-humiliatedly.ngrok-free.dev/api/v1';
+const BASE_URL = 'https://tiffi-backend.onrender.com/api/v1';
 
 const api = axios.create({
   baseURL: BASE_URL,
-  timeout: 15000,
-  headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+  timeout: 30000,
+  headers: { 'Content-Type': 'application/json' },
 });
 
 // Attach JWT token to every request
