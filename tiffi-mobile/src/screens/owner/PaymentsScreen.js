@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity,
-  Alert, ActivityIndicator, RefreshControl, TextInput, Modal, KeyboardAvoidingView, Platform,
+  Alert, ActivityIndicator, RefreshControl, TextInput, Modal, KeyboardAvoidingView, Platform, Linking,
 } from 'react-native';
 import { paymentAPI, customerAPI } from '../../services/api';
 import { useTheme } from '../../context/ThemeContext';
@@ -14,6 +14,17 @@ import { EmptyState } from '../../components/EmptyState';
 import { spacing, fontSizes, fonts, radius, shadows } from '../../theme';
 
 const MODE_ICONS = { cash: '💵', upi: '📱', card: '💳', online: '🌐' };
+
+const sendWhatsAppReminder = (customer, amount, monthLabel, year) => {
+  if (!customer?.phone) {
+    Alert.alert('No Phone', 'Phone number not available for this customer.');
+    return;
+  }
+  const phone = '91' + customer.phone.replace(/\D/g, '').slice(-10);
+  const msg = `Hi ${customer.name} 👋,\n\nYour tiffin payment of *₹${Number(amount).toLocaleString('en-IN')}* for *${monthLabel} ${year}* is pending.\n\nKindly pay at the earliest. 🙏\n\n_- Shubh Tiffin Center_`;
+  const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+  Linking.openURL(url).catch(() => Alert.alert('WhatsApp not installed', 'Please install WhatsApp to send reminders.'));
+};
 
 export default function PaymentsScreen({ navigation }) {
   const { theme, isDark } = useTheme();
@@ -138,37 +149,60 @@ export default function PaymentsScreen({ navigation }) {
           </View>
         }
         contentContainerStyle={{ paddingBottom: 100 }}
-        renderItem={({ item }) => (
-          <Card style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: spacing.lg, marginBottom: spacing.sm, padding: spacing.md, gap: spacing.md }}>
-            <View style={{
-              width: 44, height: 44, borderRadius: 22,
-              backgroundColor: theme.surface,
-              borderWidth: 1, borderColor: theme.border,
-              justifyContent: 'center', alignItems: 'center',
-            }}>
-              <Text style={{ fontSize: 20 }}>{MODE_ICONS[item.paymentMode] || '💰'}</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: theme.text, fontSize: fontSizes.body, fontFamily: fonts.semibold }}>
-                {item.customerName || `Customer #${item.customerId}`}
-              </Text>
-              <Text style={{ color: theme.textSecondary, fontSize: fontSizes.sm, fontFamily: fonts.regular, marginTop: 2 }}>
-                {item.paymentMode?.toUpperCase()} • {item.paymentDate || 'Pending'}
-              </Text>
-              {item.notes ? (
-                <Text style={{ color: theme.textMuted, fontSize: fontSizes.sm, fontFamily: fonts.regular, marginTop: 2, fontStyle: 'italic' }}>
-                  {item.notes}
-                </Text>
-              ) : null}
-            </View>
-            <View style={{ alignItems: 'flex-end', gap: spacing.xs }}>
-              <Text style={{ color: theme.text, fontSize: fontSizes.body, fontFamily: fonts.extrabold }}>
-                ₹{Number(item.amount).toLocaleString('en-IN')}
-              </Text>
-              <Badge status={item.status} />
-            </View>
-          </Card>
-        )}
+        renderItem={({ item }) => {
+          const isPending = item.status === 'pending' || item.status === 'partial';
+          const customer = customers.find(c => c.id === item.customerId);
+          return (
+            <Card style={{ marginHorizontal: spacing.lg, marginBottom: spacing.sm, padding: spacing.md }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+                <View style={{
+                  width: 44, height: 44, borderRadius: 22,
+                  backgroundColor: theme.surface,
+                  borderWidth: 1, borderColor: theme.border,
+                  justifyContent: 'center', alignItems: 'center',
+                }}>
+                  <Text style={{ fontSize: 20 }}>{MODE_ICONS[item.paymentMode] || '💰'}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: theme.text, fontSize: fontSizes.body, fontFamily: fonts.semibold }}>
+                    {item.customerName || `Customer #${item.customerId}`}
+                  </Text>
+                  <Text style={{ color: theme.textSecondary, fontSize: fontSizes.sm, fontFamily: fonts.regular, marginTop: 2 }}>
+                    {item.paymentMode?.toUpperCase()} • {item.paymentDate || 'Pending'}
+                  </Text>
+                  {item.notes ? (
+                    <Text style={{ color: theme.textMuted, fontSize: fontSizes.sm, fontFamily: fonts.regular, marginTop: 2, fontStyle: 'italic' }}>
+                      {item.notes}
+                    </Text>
+                  ) : null}
+                </View>
+                <View style={{ alignItems: 'flex-end', gap: spacing.xs }}>
+                  <Text style={{ color: theme.text, fontSize: fontSizes.body, fontFamily: fonts.extrabold }}>
+                    ₹{Number(item.amount).toLocaleString('en-IN')}
+                  </Text>
+                  <Badge status={item.status} />
+                </View>
+              </View>
+              {isPending && (
+                <TouchableOpacity
+                  onPress={() => sendWhatsAppReminder(customer, item.amount, monthLabel, year)}
+                  activeOpacity={0.8}
+                  style={{
+                    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+                    gap: spacing.xs, marginTop: spacing.sm,
+                    backgroundColor: '#25D366' + '18',
+                    borderWidth: 1, borderColor: '#25D366' + '55',
+                    borderRadius: radius.md, paddingVertical: spacing.sm,
+                  }}>
+                  <Text style={{ fontSize: 16 }}>💬</Text>
+                  <Text style={{ color: '#25D366', fontSize: fontSizes.sm, fontFamily: fonts.bold }}>
+                    Send WhatsApp Reminder
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </Card>
+          );
+        }}
         ListEmptyComponent={
           <EmptyState emoji="💳" title="No transactions" subtitle="No transactions recorded this month" />
         }
